@@ -41,6 +41,7 @@ install_node() {
     install_dependencies
     install_rust
     screen -dmS nexus_node bash -c 'curl https://cli.nexus.xyz/ | sh; exec bash'
+     screen -r nexus_node
 }
 
 # Вывод приветственного текста с помощью figlet
