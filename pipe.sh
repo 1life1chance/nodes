@@ -71,7 +71,7 @@ install_node() {
     cd ~/pipe
 
     # Скачиваем файл pop
-    wget https://dl.pipecdn.app/v0.2.5/pop
+    wget https://dl.pipecdn.app/v0.2.6/pop
 
     # Делаем файл исполнимым
     chmod +x pop
@@ -119,7 +119,7 @@ check_points() {
 }
 
 update_node() {
-    echo -e "${BLUE}Обновление до версии 0.2.5...${NC}"
+    echo -e "${BLUE}Обновление до версии 0.2.6...${NC}"
 
     # Остановка процесса pop
     echo -e "${YELLOW}Останавливаем службу pipe-pop...${NC}"
@@ -134,7 +134,7 @@ update_node() {
 
     # Скачивание новой версии pop
     echo -e "${YELLOW}Скачиваем новую версию pop...${NC}"
-    wget -O pop "https://dl.pipecdn.app/v0.2.5/pop"
+    wget -O pop "https://dl.pipecdn.app/v0.2.6/pop"
 
     # Делаем файл исполнимым
     chmod +x pop
