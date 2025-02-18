@@ -1,6 +1,4 @@
 #!/bin/bash
-
-# Обновляем систему
 echo "Обновляем систему перед настройкой..."
 sudo apt update -y && sudo apt upgrade -y
 
@@ -15,24 +13,34 @@ if ! command -v whiptail &> /dev/null; then
     sudo apt update && sudo apt install -y whiptail
 fi
 
-# Определяем цвета
+# Определяем цвета для удобства
+YELLOW="\e[33m"
+CYAN="\e[36m"
+BLUE="\e[34m"
+GREEN="\e[32m"
+RED="\e[31m"
 PINK="\e[35m"
 NC="\e[0m"
-GREEN="\e[32m"
 
-# Вывод логотипа
-echo -e "${PINK}$(figlet -w 150 -f standard \"Softs by Gentleman\")${NC}"
-echo -e "${PINK}$(figlet -w 150 -f standard \"x WESNA\")${NC}"
+install_dependencies() {
+    echo -e "${GREEN}Устанавливаем необходимые пакеты...${NC}"
+    sudo apt update && sudo apt install -y curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip screen
+}
+
+# Вывод приветственного текста с помощью figlet
+echo -e "${PINK}$(figlet -w 150 -f standard "Softs by Gentleman")${NC}"
+echo -e "${PINK}$(figlet -w 150 -f standard "x WESNA")${NC}"
 
 echo "===================================================================================================================================="
-echo "Добро пожаловать! Подпишитесь на наши Telegram-каналы для обновлений и поддержки:"
+echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-каналы для обновлений и поддержки: "
+echo ""
 echo "Gentleman - https://t.me/GentleChron"
 echo "Wesna - https://t.me/softs_by_wesna"
 echo "===================================================================================================================================="
 
 echo ""
 
-# Анимация загрузки меню
+# Определение функции анимации
 animate_loading() {
     for ((i = 1; i <= 5; i++)); do
         printf "\r${GREEN}Подгружаем меню${NC}."
@@ -47,24 +55,30 @@ animate_loading() {
     echo ""
 }
 
+# Вызов функции анимации
 animate_loading
+echo ""
 
-# Функция установки ноды
+# Функция для установки ноды
 install_node() {
-    echo "Hello"
+    echo -e "${GREEN}Процесс установки и запуска завершён!${NC}"
 }
 
 # Основное меню
 CHOICE=$(whiptail --title "Меню действий" \
-    --menu "Выберите действие:" 15 50 2 \
+    --menu "Выберите действие:" 15 50 6 \
     "1" "Установка ноды" \
+    "2" "Выход" \
     3>&1 1>&2 2>&3)
 
 case $CHOICE in
     1) 
         install_node
         ;;
+    2) 
+        echo -e "${CYAN}Выход из программы.${NC}"
+        ;;
     *)
-        echo -e "${GREEN}Выход из программы.${NC}"
+        echo -e "${RED}Неверный выбор. Завершение программы.${NC}"
         ;;
 esac
