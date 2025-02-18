@@ -1,4 +1,5 @@
 #!/bin/bash
+
 echo "Обновляем систему перед настройкой..."
 sudo apt update -y && sudo apt upgrade -y
 
@@ -27,9 +28,24 @@ install_dependencies() {
     sudo apt update && sudo apt install -y curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip screen
 }
 
+install_rust() {
+    echo -e "${GREEN}Устанавливаем Rust...${NC}"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    source $HOME/.cargo/env
+    echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+    rustup update
+}
+
+install_node() {
+    install_dependencies
+    install_rust
+    screen -dmS nexus_node bash -c 'curl https://cli.nexus.xyz/ | sh; exec bash'
+}
+
 # Вывод приветственного текста с помощью figlet
-echo -e "${PINK}$(figlet -w 150 -f standard "Softs by Gentleman")${NC}"
-echo -e "${PINK}$(figlet -w 150 -f standard "x WESNA")${NC}"
+echo -e "${PINK}$(figlet -w 150 -f standard \"Softs by Gentleman\")${NC}"
+echo -e "${PINK}$(figlet -w 150 -f standard \"x WESNA\")${NC}"
 
 echo "===================================================================================================================================="
 echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-каналы для обновлений и поддержки: "
@@ -58,11 +74,6 @@ animate_loading() {
 # Вызов функции анимации
 animate_loading
 echo ""
-
-# Функция для установки ноды
-install_node() {
-    echo -e "${GREEN}Процесс установки и запуска завершён!${NC}"
-}
 
 # Основное меню
 CHOICE=$(whiptail --title "Меню действий" \
