@@ -25,7 +25,40 @@ NC="\e[0m"
 
 install_dependencies() {
     echo -e "${GREEN}Устанавливаем необходимые пакеты...${NC}"
-    sudo apt update && sudo apt install -y curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip screen
+    sudo apt update && sudo apt install -y \
+        curl \
+        iptables \
+        build-essential \
+        git \
+        wget \
+        lz4 \
+        jq \
+        make \
+        gcc \
+        nano \
+        automake \
+        autoconf \
+        tmux \
+        htop \
+        nvme-cli \
+        pkg-config \
+        libssl-dev \
+        libleveldb-dev \
+        tar \
+        clang \
+        bsdmainutils \
+        ncdu \
+        unzip \
+        screen \
+        protobuf-compiler \
+        ca-certificates \
+        libzmq3-dev \
+        libczmq-dev \
+        python3-pip \
+        dos2unix \
+        libcurl4-openssl-dev \
+        figlet \
+        whiptail
 }
 
 install_rust() {
@@ -41,7 +74,7 @@ install_node() {
     install_dependencies
     install_rust
     screen -dmS nexus_node bash -c 'curl https://cli.nexus.xyz/ | sh; exec bash'
-     screen -r nexus_node
+    screen -r nexus_node
 }
 
 # Вывод приветственного текста с помощью figlet
