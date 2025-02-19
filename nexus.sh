@@ -121,6 +121,7 @@ install_node() {
 
     echo -e "${GREEN}Запуск ноды Nexus...${NC}"
     screen -dmS nexus_node bash -c 'curl https://cli.nexus.xyz/ | sh; exec bash'
+    sleep 5
     screen -r nexus_node
 }
 
