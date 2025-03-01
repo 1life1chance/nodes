@@ -83,11 +83,16 @@ case $CHOICE in
         read -p "Придумайте пароль (PIN): " PIN
         
         # Запрос параметров bandwidth-upload и storage с обработкой пустого ввода
-        read -p "Введите значение для bandwidth-upload (Default 100): " BANDWIDTH_UPLOAD
+        read -p "Введите значение для bandwidth-upload (в МБ, Default 100): " BANDWIDTH_UPLOAD
         BANDWIDTH_UPLOAD=${BANDWIDTH_UPLOAD:-100}
 
-        read -p "Введите значение для storage (Default 200): " STORAGE
+        read -p "Введите значение для storage (в ГБ, Default 200): " STORAGE
         STORAGE=${STORAGE:-200}
+
+        # Вывод введенных значений для проверки
+        echo -e "${YELLOW}Используемые параметры:${NC}"
+        echo "Bandwidth Upload: $BANDWIDTH_UPLOAD MB"
+        echo "Storage: $STORAGE GB"
 
         # Привязка аккаунта с введенными пользователем значениями
         ./multiple-cli bind --bandwidth-download 100 --identifier "$IDENTIFIER" --pin "$PIN" --storage "$STORAGE" --bandwidth-upload "$BANDWIDTH_UPLOAD"
