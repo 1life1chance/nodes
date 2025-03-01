@@ -79,11 +79,13 @@ case $CHOICE in
         source ./start.sh
 
         # Ввод Account ID и PIN
-        read -p "Введите ваш Account ID: " IDENTIFIER
-        read -p "Придумайте пароль (PIN): " PIN
-
+        echo -e "${YELLOW}Введите ваш Account ID:${NC}"
+        read IDENTIFIER
+        echo -e "${YELLOW}Придумайте пароль (PIN):${NC}"
+        read PIN
+        
         # Привязка аккаунта с введенными пользователем значениями
-        ./multiple-cli bind --bandwidth-download 1000 --identifier "$IDENTIFIER" --pin "$PIN" --storage 2000 --bandwidth-upload 1000
+        ./multiple-cli bind --identifier "$IDENTIFIER" --pin "$PIN" --storage 200 --bandwidth-upload 100
 
         # Заключительный вывод
         echo -e "${PINK}-----------------------------------------------------------${NC}"
