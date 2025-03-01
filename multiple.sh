@@ -1,34 +1,29 @@
 #!/bin/bash
 
-# Проверка наличия необходимых утилит, установка если отсутствует
-if ! command -v figlet &> /dev/null; then
-    echo "figlet не найден. Устанавливаем..."
-    sudo apt update && sudo apt install -y figlet
-fi
+# Цвета текста
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PINK='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # Нет цвета (сброс цвета)
 
-if ! command -v whiptail &> /dev/null; then
-    echo "whiptail не найден. Устанавливаем..."
-    sudo apt update && sudo apt install -y whiptail
+# Проверка наличия curl и установка, если не установлен
+if ! command -v curl &> /dev/null; then
+    sudo apt update
+    sudo apt install curl -y
 fi
+sleep 1
 
-# Определяем цвета для удобства
-YELLOW="\e[33m"
-CYAN="\e[36m"
-BLUE="\e[34m"
-GREEN="\e[32m"
-RED="\e[31m"
-PINK="\e[35m"
-NC="\e[0m"
 
 # Вывод приветственного текста с помощью figlet
 echo -e "${PINK}$(figlet -w 150 -f standard "Softs by Gentleman")${NC}"
-echo -e "${PINK}$(figlet -w 150 -f standard "x WESNA")${NC}"
 
 echo "===================================================================================================================================="
 echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-каналы для обновлений и поддержки: "
 echo ""
-echo "Gentleman - https://t.me/GentleChron"
-echo "Wesna - https://t.me/softs_by_wesna"
+echo "TheGentleman - https://t.me/GentleChron"
 echo "===================================================================================================================================="
 
 echo ""
@@ -52,96 +47,74 @@ animate_loading() {
 animate_loading
 echo ""
 
-# Функция для установки ноды
-install_node() {
-    echo -e "${BLUE}Начинаем установку ноды...${NC}"
-
-    # Обновление и установка зависимостей
-    sudo apt update -y && sudo apt upgrade -y
-
-    # Проверка архитектуры системы
-    ARCH=$(uname -m)
-    if [[ "$ARCH" == "x86_64" ]]; then
-        CLIENT_URL="https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/x64/multipleforlinux.tar"
-    elif [[ "$ARCH" == "aarch64" ]]; then
-        CLIENT_URL="https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/arm64/multipleforlinux.tar"
-    else
-        echo -e "${RED}Неподдерживаемая архитектура системы: $ARCH${NC}"
-        exit 1
-    fi
-
-    # Скачиваем и распаковываем клиент
-    wget $CLIENT_URL -O multipleforlinux.tar
-    tar -xvf multipleforlinux.tar
-    cd multipleforlinux
-
-    # Устанавливаем разрешения на выполнение
-    chmod +x ./multiple-cli
-    chmod +x ./multiple-node
-
-    # Добавляем клиент в системный PATH
-    echo "PATH=\$PATH:$(pwd)" >> ~/.bash_profile
-    source ~/.bash_profile
-
-    # Запуск ноды
-    nohup ./multiple-node > output.log 2>&1 &
-
-    # Ввод данных аккаунта
-    echo -e "${YELLOW}Введите ваш Account ID:${NC}"
-    read IDENTIFIER
-    echo -e "${YELLOW}Установите ваш PIN:${NC}"
-    read PIN
-
-    # Привязка аккаунта
-    ./multiple-cli bind --bandwidth-download 100 --identifier $IDENTIFIER --pin $PIN --storage 200 --bandwidth-upload 100
-
-    # Проверка статуса
-    cd ~/multipleforlinux && ./multiple-cli status
-}
-
-# Функция для проверки статуса ноды
-check_status() {
-    echo -e "${BLUE}Проверка статуса ноды...${NC}"
-    cd ~/multipleforlinux && ./multiple-cli status
-}
-
-# Функция для удаления ноды
-remove_node() {
-    echo -e "${BLUE}Удаляем ноду...${NC}"
-
-    # Остановка процесса
-    pkill -f multiple-node
-
-    # Удаление файлов ноды
-    sudo rm -rf ~/multipleforlinux
-
-    echo -e "${GREEN}Нода успешно удалена!${NC}"
-}
-
-#!/bin/bash
-
-# Вывод меню действий
+# Меню
 CHOICE=$(whiptail --title "Меню действий" \
     --menu "Выберите действие:" 15 50 4 \
-    "1" "Установка ноды" \
-    "2" "Проверка статуса ноды" \
-    "3" "Удаление ноды" \
+    "1" "Установить" \
+    "2" "Проверить статус" \
+    "3" "Удалить ноду" \
     "4" "Выход" \
     3>&1 1>&2 2>&3)
 
 case $CHOICE in
-    1) 
-        install_node
+    1)
+        echo -e "${BLUE}Устанавливаем ноду...${NC}"
+
+        # Обновление и установка зависимостей
+        sudo apt update && sudo apt upgrade -y
+
+        rm -f ~/install.sh ~/update.sh ~/start.sh
+        
+        # Скачиваем и устанавливаем клиент
+        wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/install.sh
+        source ./install.sh
+
+        wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/update.sh
+        source ./update.sh
+
+        # Переход в папку клиента
+        cd ~/multipleforlinux
+
+        # Запуск ноды
+        wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/start.sh
+        source ./start.sh
+
+        # Ввод Account ID и PIN
+        echo -e "${YELLOW}Введите ваш Account ID:${NC}"
+        read IDENTIFIER
+        echo -e "${YELLOW}Придумайте пароль (PIN):${NC}"
+        read PIN
+
+        # Привязка аккаунта
+        multiple-cli bind --bandwidth-download 100 --identifier $IDENTIFIER --pin $PIN --storage 200 --bandwidth-upload 100
+
+        # Заключительный вывод
+        echo -e "${PINK}-----------------------------------------------------------${NC}"
+        echo -e "${YELLOW}Команда для проверки статуса ноды:${NC}"
+        echo "cd ~/multipleforlinux && ./multiple-cli status"
+        echo -e "${PINK}-----------------------------------------------------------${NC}"
+        echo -e "${GREEN}Установка завершена!${NC}"
+        sleep 2
+        cd ~/multipleforlinux && ./multiple-cli status
         ;;
-    2) 
-        check_status
+
+    2)
+        echo -e "${BLUE}Проверяем статус...${NC}"
+        cd ~/multipleforlinux && ./multiple-cli status
         ;;
-    3) 
-        remove_node
+
+    3)
+        echo -e "${BLUE}Удаление ноды...${NC}"
+        pkill -f multiple-node
+        sudo rm -rf ~/multipleforlinux
+        echo -e "${GREEN}Нода успешно удалена!${NC}"
         ;;
+    
     4)
         echo -e "${CYAN}Выход из программы.${NC}"
+        exit 0
         ;;
+    
     *)
         echo -e "${RED}Неверный выбор. Завершение программы.${NC}"
         ;;
