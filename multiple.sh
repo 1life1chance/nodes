@@ -1,28 +1,33 @@
 #!/bin/bash
 
-# Цвета текста
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-PINK='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # Нет цвета (сброс цвета)
-
-# Проверка наличия curl и установка, если не установлен
-if ! command -v curl &> /dev/null; then
-    sudo apt update
-    sudo apt install curl -y
+# Проверка наличия необходимых утилит, установка если отсутствует
+if ! command -v figlet &> /dev/null; then
+    echo "figlet не найден. Устанавливаем..."
+    sudo apt update && sudo apt install -y figlet
 fi
-sleep 1
+
+if ! command -v whiptail &> /dev/null; then
+    echo "whiptail не найден. Устанавливаем..."
+    sudo apt update && sudo apt install -y whiptail
+fi
+
+# Определяем цвета для удобства
+YELLOW="\e[33m"
+CYAN="\e[36m"
+BLUE="\e[34m"
+GREEN="\e[32m"
+RED="\e[31m"
+PINK="\e[35m"
+NC="\e[0m"
 
 # Вывод приветственного текста с помощью figlet
-echo -e "${PINK}$(figlet -w 150 -f standard "Softs by TheGentleman")${NC}"
+echo -e "${PINK}$(figlet -w 150 -f standard "Softs by The Gentleman")${NC}"
+
 
 echo "===================================================================================================================================="
-echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-канал для обновлений и поддержки: "
+echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на мой Telegram-канал для обновлений и поддержки: "
 echo ""
-echo "TheGentleman - https://t.me/GentleChron"
+echo "The Gentleman - https://t.me/GentleChron"
 echo "===================================================================================================================================="
 
 echo ""
@@ -36,7 +41,7 @@ animate_loading() {
         sleep 0.3
         printf "\r${GREEN}Подгружаем меню${NC}..."
         sleep 0.3
-        printf "\r${GREEN}Подгружаем меню${NC} "
+        printf "\r${GREEN}Подгружаем меню${NC}"
         sleep 0.3
     done
     echo ""
@@ -46,77 +51,40 @@ animate_loading() {
 animate_loading
 echo ""
 
-# Меню
+# Вывод меню действий
 CHOICE=$(whiptail --title "Меню действий" \
     --menu "Выберите действие:" 15 50 4 \
-    "1" "Установить" \
-    "2" "Проверить статус" \
+    "1" "Установить ноду" \
+    "2" "Проверить статус ноды" \
     "3" "Удалить ноду" \
-    "4" "Выход" \
+    "4" "Покинуть меню" \
     3>&1 1>&2 2>&3)
 
 case $CHOICE in
     1)
         echo -e "${BLUE}Устанавливаем ноду...${NC}"
 
-        # Обновление и установка зависимостей
         sudo apt update && sudo apt upgrade -y
-
         rm -f ~/install.sh ~/update.sh ~/start.sh
         
-        # Скачиваем и устанавливаем клиент
         wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/install.sh
         source ./install.sh
 
         wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/update.sh
         source ./update.sh
 
-        # Проверяем существование папки multipleforlinux
-        if [ ! -d "$HOME/multipleforlinux" ]; then
-            echo -e "${RED}Ошибка: директория multipleforlinux не найдена!${NC}"
-            exit 1
-        fi
-        cd ~/multipleforlinux || exit 1
+        cd ~/multipleforlinux
 
-        # Выдача прав на выполнение
-        chmod +x multiple-cli multiple-node start.sh
+        wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/start.sh
+        source ./start.sh
 
-        # Перезапуск ноды
-        echo -e "${BLUE}Запускаем multiple-node...${NC}"
-        ./start.sh
+        echo -e "${YELLOW}Введите ваш Account ID (unique identification code):${NC}"
+        read IDENTIFIER
+        echo -e "${YELLOW}Придумайте пароль:${NC}"
+        read PIN
 
-        # Проверяем, работает ли процесс
-        sleep 5
-        if ! pgrep -f multiple-node > /dev/null; then
-            echo -e "${RED}Ошибка: multiple-node не запустился!${NC}"
-            exit 1
-        fi
+        multiple-cli bind --bandwidth-download 100 --identifier $IDENTIFIER --pin $PIN --storage 200 --bandwidth-upload 100
 
-        # Ввод Account ID и PIN
-        echo -e "${YELLOW}Введите ваш Account ID:${NC}"
-        read -r IDENTIFIER
-        echo -e "${YELLOW}Придумайте пароль (PIN):${NC}"
-        read -r PIN
-        
-        # Проверяем, существует ли multiple-cli перед привязкой
-        if [ ! -f "./multiple-cli" ]; then
-            echo -e "${RED}Ошибка: multiple-cli не найден!${NC}"
-            exit 1
-        fi
-
-        # Привязка аккаунта
-        echo -e "${BLUE}Привязываем аккаунт...${NC}"
-        ./multiple-cli bind --identifier "$IDENTIFIER" --pin "$PIN" --storage 200 --bandwidth-upload 100
-
-        # Проверяем, успешно ли привязана нода
-        sleep 5
-        BIND_STATUS=$(./multiple-cli status | grep -i "bound")
-        if [[ -z "$BIND_STATUS" ]]; then
-            echo -e "${RED}Ошибка: Нода не привязана! Попробуйте повторно.${NC}"
-            exit 1
-        fi
-
-        # Заключительный вывод
         echo -e "${PINK}-----------------------------------------------------------${NC}"
         echo -e "${YELLOW}Команда для проверки статуса ноды:${NC}"
         echo "cd ~/multipleforlinux && ./multiple-cli status"
@@ -128,11 +96,7 @@ case $CHOICE in
 
     2)
         echo -e "${BLUE}Проверяем статус...${NC}"
-        if [ -f "$HOME/multipleforlinux/multiple-cli" ]; then
-            cd ~/multipleforlinux && ./multiple-cli status
-        else
-            echo -e "${RED}Ошибка: multiple-cli не найден!${NC}"
-        fi
+        cd ~/multipleforlinux && ./multiple-cli status
         ;;
 
     3)
