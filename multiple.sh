@@ -20,7 +20,7 @@ sleep 1
 echo -e "${PINK}$(figlet -w 150 -f standard "Softs by TheGentleman")${NC}"
 
 echo "===================================================================================================================================="
-echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на мой Telegram-каналы для обновлений и поддержки: "
+echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-канал для обновлений и поддержки: "
 echo ""
 echo "TheGentleman - https://t.me/GentleChron"
 echo "===================================================================================================================================="
@@ -71,17 +71,26 @@ case $CHOICE in
         wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/update.sh
         source ./update.sh
 
-        # Переход в папку клиента
-        cd ~/multipleforlinux || { echo -e "${RED}Ошибка: директория ~/multipleforlinux не найдена!${NC}"; exit 1; }
+        # Проверяем существование папки multipleforlinux
+        if [ ! -d "$HOME/multipleforlinux" ]; then
+            echo -e "${RED}Ошибка: директория multipleforlinux не найдена!${NC}"
+            exit 1
+        fi
+        cd ~/multipleforlinux || exit 1
 
         # Выдача прав на выполнение
-        chmod +x multiple-cli multiple-node
+        chmod +x multiple-cli multiple-node start.sh
 
-        # Запуск ноды
-        wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/start.sh
-        source ./start.sh
+        # Перезапуск ноды
+        echo -e "${BLUE}Запускаем multiple-node...${NC}"
+        ./start.sh
 
-        sleep 5  # Даем ноде время на запуск
+        # Проверяем, работает ли процесс
+        sleep 5
+        if ! pgrep -f multiple-node > /dev/null; then
+            echo -e "${RED}Ошибка: multiple-node не запустился!${NC}"
+            exit 1
+        fi
 
         # Ввод Account ID и PIN
         echo -e "${YELLOW}Введите ваш Account ID:${NC}"
@@ -89,6 +98,12 @@ case $CHOICE in
         echo -e "${YELLOW}Придумайте пароль (PIN):${NC}"
         read -r PIN
         
+        # Проверяем, существует ли multiple-cli перед привязкой
+        if [ ! -f "./multiple-cli" ]; then
+            echo -e "${RED}Ошибка: multiple-cli не найден!${NC}"
+            exit 1
+        fi
+
         # Привязка аккаунта
         echo -e "${BLUE}Привязываем аккаунт...${NC}"
         ./multiple-cli bind --identifier "$IDENTIFIER" --pin "$PIN" --storage 200 --bandwidth-upload 100
@@ -113,7 +128,11 @@ case $CHOICE in
 
     2)
         echo -e "${BLUE}Проверяем статус...${NC}"
-        cd ~/multipleforlinux && ./multiple-cli status
+        if [ -f "$HOME/multipleforlinux/multiple-cli" ]; then
+            cd ~/multipleforlinux && ./multiple-cli status
+        else
+            echo -e "${RED}Ошибка: multiple-cli не найден!${NC}"
+        fi
         ;;
 
     3)
