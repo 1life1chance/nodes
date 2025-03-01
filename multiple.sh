@@ -84,8 +84,8 @@ case $CHOICE in
         echo -e "${YELLOW}Придумайте пароль (PIN):${NC}"
         read PIN
         
-        # Привязка аккаунта с введенными пользователем значениями
-        ./multiple-cli bind --identifier "$IDENTIFIER" --pin "$PIN" --storage 200 --bandwidth-upload 100
+        # Связываем ноду с сайтом
+        ./multiple-cli bind --bandwidth-download 100 --identifier $IDENTIFIER --pin $PIN --storage 200 --bandwidth-upload 100
 
         # Заключительный вывод
         echo -e "${PINK}-----------------------------------------------------------${NC}"
