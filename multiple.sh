@@ -20,7 +20,7 @@ sleep 1
 echo -e "${PINK}$(figlet -w 150 -f standard "Softs by TheGentleman")${NC}"
 
 echo "===================================================================================================================================="
-echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-каналы для обновлений и поддержки: "
+echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на мой Telegram-каналы для обновлений и поддержки: "
 echo ""
 echo "TheGentleman - https://t.me/GentleChron"
 echo "===================================================================================================================================="
@@ -36,7 +36,7 @@ animate_loading() {
         sleep 0.3
         printf "\r${GREEN}Подгружаем меню${NC}..."
         sleep 0.3
-        printf "\r${GREEN}Подгружаем меню${NC}"
+        printf "\r${GREEN}Подгружаем меню${NC} "
         sleep 0.3
     done
     echo ""
@@ -72,20 +72,34 @@ case $CHOICE in
         source ./update.sh
 
         # Переход в папку клиента
-        cd ~/multipleforlinux
+        cd ~/multipleforlinux || { echo -e "${RED}Ошибка: директория ~/multipleforlinux не найдена!${NC}"; exit 1; }
+
+        # Выдача прав на выполнение
+        chmod +x multiple-cli multiple-node
 
         # Запуск ноды
         wget https://mdeck-download.s3.us-east-1.amazonaws.com/client/linux/start.sh
         source ./start.sh
 
+        sleep 5  # Даем ноде время на запуск
+
         # Ввод Account ID и PIN
         echo -e "${YELLOW}Введите ваш Account ID:${NC}"
-        read IDENTIFIER
+        read -r IDENTIFIER
         echo -e "${YELLOW}Придумайте пароль (PIN):${NC}"
-        read PIN
+        read -r PIN
         
-        # Связываем ноду с сайтом
-        ./multiple-cli bind --bandwidth-download 100 --identifier $IDENTIFIER --pin $PIN --storage 200 --bandwidth-upload 100
+        # Привязка аккаунта
+        echo -e "${BLUE}Привязываем аккаунт...${NC}"
+        ./multiple-cli bind --identifier "$IDENTIFIER" --pin "$PIN" --storage 200 --bandwidth-upload 100
+
+        # Проверяем, успешно ли привязана нода
+        sleep 5
+        BIND_STATUS=$(./multiple-cli status | grep -i "bound")
+        if [[ -z "$BIND_STATUS" ]]; then
+            echo -e "${RED}Ошибка: Нода не привязана! Попробуйте повторно.${NC}"
+            exit 1
+        fi
 
         # Заключительный вывод
         echo -e "${PINK}-----------------------------------------------------------${NC}"
