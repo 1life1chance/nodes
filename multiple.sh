@@ -16,7 +16,6 @@ if ! command -v curl &> /dev/null; then
 fi
 sleep 1
 
-
 # Вывод приветственного текста с помощью figlet
 echo -e "${PINK}$(figlet -w 150 -f standard "Softs by Gentleman")${NC}"
 
@@ -84,9 +83,15 @@ case $CHOICE in
         read IDENTIFIER
         echo -e "${YELLOW}Придумайте пароль (PIN):${NC}"
         read PIN
+        
+        # Запрос параметров bandwidth-upload и storage
+        echo -e "${YELLOW}Введите значение для bandwidth-upload (в МБ, Default 100)):${NC}"
+        read BANDWIDTH_UPLOAD
+        echo -e "${YELLOW}Введите значение для storage (в ГБ, Default 200):${NC}"
+        read STORAGE
 
-        # Привязка аккаунта
-        multiple-cli bind --bandwidth-download 100 --identifier $IDENTIFIER --pin $PIN --storage 200 --bandwidth-upload 100
+        # Привязка аккаунта с введенными пользователем значениями
+        multiple-cli bind --bandwidth-download 100 --identifier "$IDENTIFIER" --pin "$PIN" --storage "$STORAGE" --bandwidth-upload "$BANDWIDTH_UPLOAD"
 
         # Заключительный вывод
         echo -e "${PINK}-----------------------------------------------------------${NC}"
