@@ -15,7 +15,12 @@ fi
 if ! command -v docker &> /dev/null; then
     echo -e "\e[35mDocker не найден. Устанавливаем Docker...\e[0m"
     curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh
-    sudo usermod -aG docker $USER
+
+    # Устанавливаем путь к docker, если скрипт запущен как root
+    export PATH=$PATH:/usr/bin
+
+    echo -e "\e[32mDocker установлен. Перезапускаем скрипт...\e[0m"
+    exec "$0" "$@"
 fi
 
 # Проверка и установка Docker Compose
@@ -129,7 +134,7 @@ case $CHOICE in
           --gas-adjustment="1.5" \
           --fees=2000udill \
           --from=$NEW_VALIDATOR \
-          --node https://rpc.dillchain.io:443
+          --node=https://rpc.dillchain.io:443
 
         echo -e "${GREEN}Перезапускаем ноду...${NC}"
         ./start_dill_node.sh
@@ -169,7 +174,7 @@ case $CHOICE in
           --gas-adjustment="1.5" \
           --fees=2000udill \
           --from=$NEW_VALIDATOR \
-          --node https://rpc.dillchain.io:443
+          --node=https://rpc.dillchain.io:443
         ;;
 
     *)
