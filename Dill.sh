@@ -105,7 +105,7 @@ case $CHOICE in
         cd ~/dill && ./stop_dill_node.sh || echo "Нода уже остановлена или возникла ошибка"
         sleep 2
 
-        OLD_VALIDATOR=$(setsid docker compose run --rm dill dill keys list | grep 'name:' | head -n 1 | awk '{print $2}')
+        OLD_VALIDATOR=$(cd ~/dill && setsid docker compose -f docker-compose.yml run --rm dill dill keys list | grep 'name:' | head -n 1 | awk '{print $2}')
         echo -e "${GREEN}Текущий основной валидатор определен автоматически: ${PINK}$OLD_VALIDATOR${NC}"
 
         read -p "Введите имя нового валидатора (любое удобное имя, не влияет на работу ноды): " NEW_VALIDATOR
@@ -114,17 +114,19 @@ case $CHOICE in
         TOKEN_AMOUNT_UDILL=$(($TOKEN_AMOUNT * 1000000))
         TOKEN_AMOUNT_STR="${TOKEN_AMOUNT_UDILL}udill"
 
-        setsid docker compose run --rm dill dill keys add $NEW_VALIDATOR
+        cd ~/dill
+
+        setsid docker compose -f docker-compose.yml run --rm dill dill keys add $NEW_VALIDATOR
 
         echo -e "${GREEN}Пополняем баланс нового валидатора...${NC}"
-        NEW_VALIDATOR_ADDRESS=$(setsid docker compose run --rm dill dill keys show $NEW_VALIDATOR -a)
+        NEW_VALIDATOR_ADDRESS=$(setsid docker compose -f docker-compose.yml run --rm dill dill keys show $NEW_VALIDATOR -a)
 
-        setsid docker compose run --rm dill dill tx bank send $OLD_VALIDATOR $NEW_VALIDATOR_ADDRESS $TOKEN_AMOUNT_STR --fees=2000udill --chain-id=dillchain --node https://rpc.dillchain.io:443
+        setsid docker compose -f docker-compose.yml run --rm dill dill tx bank send $OLD_VALIDATOR $NEW_VALIDATOR_ADDRESS $TOKEN_AMOUNT_STR --fees=2000udill --chain-id=dillchain --node https://rpc.dillchain.io:443
 
         echo -e "${GREEN}Создаем нового валидатора...${NC}"
-        setsid docker compose run --rm dill dill tx staking create-validator \
+        setsid docker compose -f docker-compose.yml run --rm dill dill tx staking create-validator \
           --amount=$TOKEN_AMOUNT_STR \
-          --pubkey=$(setsid docker compose run --rm dill dill tendermint show-validator) \
+          --pubkey=$(setsid docker compose -f docker-compose.yml run --rm dill dill tendermint show-validator) \
           --moniker="$NEW_VALIDATOR" \
           --chain-id=dillchain \
           --commission-rate="0.10" \
@@ -156,15 +158,15 @@ case $CHOICE in
 
         cd ~/dill
 
-        setsid docker compose run --rm dill dill keys add $NEW_VALIDATOR
-        NEW_VALIDATOR_ADDRESS=$(setsid docker compose run --rm dill dill keys show $NEW_VALIDATOR -a)
+        setsid docker compose -f docker-compose.yml run --rm dill dill keys add $NEW_VALIDATOR
+        NEW_VALIDATOR_ADDRESS=$(setsid docker compose -f docker-compose.yml run --rm dill dill keys show $NEW_VALIDATOR -a)
 
         echo -e "${PINK}ВАЖНО:${NC} Переведите ${PINK}$TOKEN_AMOUNT DILL${NC} (адрес: ${GREEN}$NEW_VALIDATOR_ADDRESS${NC}) с текущей (старой) ноды и нажмите Enter после успешного перевода."
         read -p "Нажмите Enter после перевода токенов:"
 
-        setsid docker compose run --rm dill dill tx staking create-validator \
+        setsid docker compose -f docker-compose.yml run --rm dill dill tx staking create-validator \
           --amount=$TOKEN_AMOUNT_STR \
-          --pubkey=$(setsid docker compose run --rm dill dill tendermint show-validator) \
+          --pubkey=$(setsid docker compose -f docker-compose.yml run --rm dill dill tendermint show-validator) \
           --moniker="$NEW_VALIDATOR" \
           --chain-id=dillchain \
           --commission-rate="0.10" \
