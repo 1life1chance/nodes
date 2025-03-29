@@ -11,6 +11,20 @@ if ! command -v whiptail &> /dev/null; then
     sudo apt update && sudo apt install -y whiptail
 fi
 
+# Проверка и установка Docker
+if ! command -v docker &> /dev/null; then
+    echo -e "\e[35mDocker не найден. Устанавливаем Docker...\e[0m"
+    curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh
+    sudo usermod -aG docker $USER
+fi
+
+# Проверка и установка Docker Compose
+if ! docker compose version &> /dev/null; then
+    echo -e "\e[35mDocker Compose не найден. Устанавливаем...\e[0m"
+    sudo apt-get update
+    sudo apt-get install -y docker-compose-plugin
+fi
+
 # Определяем цвета
 GREEN="\e[32m"
 PINK="\e[35m"
@@ -82,6 +96,9 @@ case $CHOICE in
     6)
         echo -e "${GREEN}Добавление нового валидатора на текущий сервер...${NC}"
 
+        echo -e "${GREEN}Останавливаем текущую ноду для безопасного добавления валидатора...${NC}"
+        cd ~/dill && ./stop_dill_node.sh
+
         OLD_VALIDATOR=$(docker compose run --rm dill dill keys list | grep 'name:' | head -n 1 | awk '{print $2}')
         echo -e "${GREEN}Текущий основной валидатор определен автоматически: ${PINK}$OLD_VALIDATOR${NC}"
 
@@ -90,8 +107,6 @@ case $CHOICE in
 
         TOKEN_AMOUNT_UDILL=$(($TOKEN_AMOUNT * 1000000))
         TOKEN_AMOUNT_STR="${TOKEN_AMOUNT_UDILL}udill"
-
-        cd ~/dill
 
         docker compose run --rm dill dill keys add $NEW_VALIDATOR
 
@@ -115,6 +130,9 @@ case $CHOICE in
           --fees=2000udill \
           --from=$NEW_VALIDATOR \
           --node https://rpc.dillchain.io:443
+
+        echo -e "${GREEN}Перезапускаем ноду...${NC}"
+        ./start_dill_node.sh
         ;;
 
     7)
