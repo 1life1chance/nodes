@@ -19,8 +19,8 @@ if ! command -v docker &> /dev/null; then
     # Устанавливаем путь к docker, если скрипт запущен как root
     export PATH=$PATH:/usr/bin
 
-    echo -e "\e[32mDocker установлен. Перезапускаем скрипт...\e[0m"
-    exec "$0" "$@"
+    echo -e "\e[32mDocker установлен. Продолжаем выполнение...\e[0m"
+    sleep 2
 fi
 
 # Проверка и установка Docker Compose
