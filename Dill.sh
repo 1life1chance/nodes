@@ -74,42 +74,57 @@ case $CHOICE in
         cd ~/dill && ./start_dill_node.sh
         ;;
     6)
-        echo -e "${GREEN}Обновление ноды...${NC}"
-        cd ~/dill || { echo -e "${RED}Папка ~/dill не найдена.${NC}"; exit 1; }
+        echo -e "${GREEN}Обновление Dill-ноды начато...${NC}"
+        cd ~/dill || { echo -e "${RED}❌ Папка ~/dill не найдена.${NC}"; exit 1; }
 
-        echo -e "${PINK}Скачиваем последнюю версию...${NC}"
+        echo -e "${PINK}⏬ Получаем последнюю версию...${NC}"
         LATEST_VERSION=$(curl -s https://dill-release.s3.ap-southeast-1.amazonaws.com/version.txt)
-
         FILE_NAME="dill-${LATEST_VERSION}-linux-amd64.tar.gz"
         FILE_URL="https://dill-release.s3.ap-southeast-1.amazonaws.com/${LATEST_VERSION}/${FILE_NAME}"
 
+        echo -e "${GREEN}📦 Скачиваем архив: ${FILE_NAME}${NC}"
         TEMP_DIR="tmp_update_$(date +%s)"
         mkdir "$TEMP_DIR" && cd "$TEMP_DIR"
-
-        curl -O "$FILE_URL"
+        curl -# -O "$FILE_URL"
         if [ $? -ne 0 ]; then
-            echo -e "${RED}Ошибка загрузки архива. Проверь подключение к интернету.${NC}"
+            echo -e "${RED}❌ Ошибка загрузки. Проверьте интернет-соединение.${NC}"
             cd .. && rm -rf "$TEMP_DIR"
             exit 1
         fi
 
-        echo -e "${GREEN}Распаковываем...${NC}"
+        echo -e "${GREEN}🗃️ Распаковываем...${NC}"
         tar -xzf "$FILE_NAME"
         cd dill
 
-        echo -e "${GREEN}Останавливаем текущую ноду...${NC}"
+        echo -e "${GREEN}🧪 Проверяем бинарник...${NC}"
+        ./dill-node --version | grep "$LATEST_VERSION" > /dev/null
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}❌ Загруженный бинарник не соответствует версии ${LATEST_VERSION}. Обратитесь в поддержку.${NC}"
+            cd ../.. && rm -rf "$TEMP_DIR"
+            exit 1
+        fi
+
+        echo -e "${GREEN}🛑 Останавливаем ноду...${NC}"
         ~/dill/stop_dill_node.sh
 
-        echo -e "${GREEN}Обновляем бинарники...${NC}"
+        BACKUP_DIR=~/dill/backups/$(date +%s)
+        mkdir -p "$BACKUP_DIR"
+
+        echo -e "${PINK}🗄️  Создаём резервную копию старых файлов в: ${BACKUP_DIR}${NC}"
+        for file in dill-node start_dill_node.sh stop_dill_node.sh; do
+            [ -f ~/dill/$file ] && cp ~/dill/$file "$BACKUP_DIR/"
+        done
+
+        echo -e "${GREEN}🔁 Обновляем бинарники...${NC}"
         cp -f dill-node ~/dill/
         cp -f start_dill_node.sh ~/dill/
         cp -f stop_dill_node.sh ~/dill/
         chmod +x ~/dill/*.sh ~/dill/dill-node
 
-        echo -e "${GREEN}Запускаем новую версию...${NC}"
+        echo -e "${GREEN}🚀 Запускаем новую версию...${NC}"
         ~/dill/start_dill_node.sh
 
-        echo -e "${GREEN}Обновление завершено. Установлена версия: ${LATEST_VERSION}${NC}"
+        echo -e "${GREEN}✅ Обновление завершено! Установлена версия: ${PINK}${LATEST_VERSION}${NC}"
         cd ../.. && rm -rf "$TEMP_DIR"
         ;;
     *)
