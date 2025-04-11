@@ -42,7 +42,7 @@ animate_loading
 
 # Вывод меню
 CHOICE=$(whiptail --title "Меню действий" \
-    --menu "Выберите действие:" 17 60 6 \
+    --menu "Выберите действие:" 20 60 6 \
     "1" "Установить ноду" \
     "2" "Проверить работу ноды" \
     "3" "Показать публичный ключ" \
@@ -111,14 +111,20 @@ case $CHOICE in
         mkdir -p "$BACKUP_DIR"
 
         echo -e "${PINK}🗄️  Создаём резервную копию старых файлов в: ${BACKUP_DIR}${NC}"
-        for file in dill-node start_dill_node.sh stop_dill_node.sh; do
+        for file in dill-node start_dill_node.sh stop_dill_node.sh utility.sh \
+                    2_add_validator.sh 3_add_pool_validator.sh 4_recover_validator.sh exit_validator.sh; do
             [ -f ~/dill/$file ] && cp ~/dill/$file "$BACKUP_DIR/"
         done
 
-        echo -e "${GREEN}🔁 Обновляем бинарники...${NC}"
-        cp -f dill-node ~/dill/
-        cp -f start_dill_node.sh ~/dill/
-        cp -f stop_dill_node.sh ~/dill/
+        echo -e "${GREEN}🔁 Обновляем бинарники и скрипты...${NC}"
+        for file in dill-node start_dill_node.sh stop_dill_node.sh utility.sh \
+                    2_add_validator.sh 3_add_pool_validator.sh 4_recover_validator.sh exit_validator.sh; do
+            if [ -f "$file" ]; then
+                cp -f "$file" ~/dill/
+            else
+                echo -e "${RED}⚠️  Файл $file не найден в архиве, пропущен.${NC}"
+            fi
+        done
         chmod +x ~/dill/*.sh ~/dill/dill-node
 
         echo -e "${GREEN}🚀 Запускаем новую версию...${NC}"
