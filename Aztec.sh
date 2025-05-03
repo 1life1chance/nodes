@@ -8,15 +8,11 @@ for util in figlet whiptail curl docker iptables jq; do
   fi
 done
 
-# Цвета и стили
+# Цвета
 GREEN="\e[32m"
 YELLOW="\e[33m"
 CYAN="\e[36m"
 RED="\e[31m"
-BLINK="\e[5m"
-NO_BLINK="\e[25m"
-LINK_START="\e]8;;https://t.me/GentleChron\a"
-LINK_END="\e]8;;\a"
 NC="\e[0m"
 
 # Приветствие
@@ -25,9 +21,9 @@ echo "==========================================================================
 echo "        Добро пожаловать в мастер установки ноды Aztec от Джентльмена       "
 echo "============================================================================"
 
-# Мигающий призыв подписаться
+# Призыв подписаться
 echo
-echo -e "${BLINK}${YELLOW}Подписывайтесь на мой Telegram-канал, пока идёт загрузка скрипта:${NC} ${LINK_START}${CYAN}GentleChron${NC}${LINK_END}${BLINK}${NO_BLINK}"
+echo -e "${YELLOW}Подписывайтесь на мой Telegram-канал: https://t.me/GentleChron${NC}"
 echo -e "${CYAN}Продолжение через 10 секунд...${NC}"
 sleep 10
 
@@ -47,14 +43,14 @@ CHOICE=$(whiptail --title "Aztec Node Control" \
   "1" "Установить ноду" \
   "2" "Показать логи" \
   "3" "Получить хеш" \
-  "4" "Зарегистрировать валидатора" \
+  "4" "Регистрация валидатора" \
   "5" "Удалить ноду" \
   3>&1 1>&2 2>&3)
 
 # Функция благодарности
-say_thanks() {
+give_thanks() {
   echo
-echo -e "${CYAN}Спасибо за доверие, всегда рад видеть вас у себя в канале: ${LINK_START}${YELLOW}GentleChron${NC}${LINK_END}${CYAN}.${NC}"  
+  echo -e "${CYAN}Спасибо за доверие! Всегда рад видеть вас в канале: https://t.me/GentleChron${NC}"
 }
 
 case "$CHOICE" in
@@ -113,12 +109,12 @@ EOF
       aztecprotocol/aztec:${LATEST_TAG} \
       sh -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
 
-    say_thanks
+    give_thanks
     ;;
   2)
     echo -e "${GREEN}Показ логов контейнера:${NC}"
     docker logs --tail 100 -f aztec-sequencer
-    say_thanks
+    give_thanks
     ;;
   3)
     echo -e "${GREEN}Получение хеша...${NC}"
@@ -128,7 +124,7 @@ EOF
     curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/main/aztec/get-hash.sh > "$tmpf"
     bash "$tmpf"
     rm -f "$tmpf"
-    say_thanks
+    give_thanks
     ;;
   4)
     echo -e "${GREEN}Регистрация валидатора...${NC}"
@@ -138,7 +134,7 @@ EOF
     curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/main/aztec/register-validator.sh > "$tmpf"
     bash "$tmpf"
     rm -f "$tmpf"
-    say_thanks
+    give_thanks
     ;;
   5)
     echo -e "${RED}Полное удаление ноды...${NC}"
@@ -146,7 +142,7 @@ EOF
     docker rm aztec-sequencer
     rm -rf "$HOME/aztec-sequencer"
     echo -e "${GREEN}Нода удалена.${NC}"
-    say_thanks
+    give_thanks
     ;;
   *)
     echo -e "${RED}Неверный выбор. Выход.${NC}"
