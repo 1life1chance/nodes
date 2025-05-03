@@ -38,23 +38,17 @@ print_loading() {
 }
 print_loading
 
-# Главное меню
-choice=$(whiptail --title "Aztec Node Control" \
-  --menu "Выберите пункт:" 15 60 5 \
-    1 "Установить ноду" \
-    2 "Показать логи" \
-    3 "Проверить хеш" \
-    4 "Добавить валидатора" \
-    5 "Удалить ноду" \
-  3>&1 1>&2 2>&3)
+# Главное меню (текстовый выбор)
+echo -e "${YELLOW}Выберите пункт:${NC}"
+echo -e "${CYAN}1) Установить ноду${NC}"
+echo -e "${CYAN}2) Показать логи${NC}"
+echo -e "${CYAN}3) Проверить хеш${NC}"
+echo -e "${CYAN}4) Добавить валидатора${NC}"
+echo -e "${CYAN}5) Удалить ноду${NC}"
+echo -n "Выбор: "
+read choice
 
-# Функция вывода благодарности
-show_ack() {
-  echo
-echo -e "${CYAN}Спасибо за выбор! Подписывайтесь на канал: https://t.me/GentleChron${NC}"
-}
-
-case "$choice" in
+case "$choice" in "$choice" in
   1)
     echo -e "${GREEN}Готовлю окружение и скачиваю компоненты...${NC}"
     sudo apt-get update && sudo apt-get upgrade -y
@@ -117,12 +111,12 @@ EOF
     show_ack
     ;;
   4)
-    echo -e "${GREEN}Запускаю подключение валидатора...${NC}"
+    echo -e "${GREEN}Запускаю активацию валидатора...${NC}"
     cd "$HOME/aztec-sequencer" || exit 1
     source .env
 
-    # выполняем команду и сохраняем вывод
-    result=$(docker exec -i aztec-sequencer \
+    # Выполняем команду добавления валидатора и сохраняем полный вывод
+    RAW_OUTPUT=$(docker exec -i aztec-sequencer \
       sh -c 'node /usr/src/yarn-project/aztec/dest/bin/index.js add-l1-validator \
         --l1-rpc-urls "${ETHEREUM_HOSTS}" \
         --private-key "${VALIDATOR_PRIVATE_KEY}" \
@@ -131,22 +125,21 @@ EOF
         --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
         --l1-chain-id 11155111' 2>&1) || true
 
-    # проверяем квоту
-        # обработка ситуации с заполненной квотой
-    if echo "$result" | grep -q 'ValidatorQuotaFilledUntil'; then
-      ts=$(echo "$result" \
-        | grep -oP '(?<=\()[0-9]+(?=\))' \
-        | head -1)
-      now=$(date +%s)
-      wait=$(( (ts - now) / 60 ))
-      echo -e "${YELLOW}Квота заполнена. Повторите попытку через ${wait} минут.${NC}"
-    # остальные ошибки
-    elif echo "$result" | grep -q 'Error:'; then "$result" | grep -q 'Error:'; then
-      err=$(echo "$result" | grep -m1 'Error:')
-      echo -e "${RED}Ошибка при подключении: $err${NC}"
+    # Если квота занята — подскажем, когда попытаться снова
+    if echo "$RAW_OUTPUT" | grep -q 'ValidatorQuotaFilledUntil'; then
+      TS=$(echo "$RAW_OUTPUT" | grep -oP '(?<=\()[0-9]+(?=\))' | head -1)
+      NOW=$(date +%s)
+      MIN_LEFT=$(( (TS - NOW) / 60 ))
+      echo -e "${YELLOW}Квота заполнена. Попробуйте через ${MIN_LEFT} минут.${NC}"
+    # Другие ошибки — выводим только первую строку
+    elif echo "$RAW_OUTPUT" | grep -q 'Error:'; then
+      ERR_LINE=$(echo "$RAW_OUTPUT" | grep -m1 'Error:')
+      echo -e "${RED}Ошибка при добавлении валидатора: ${ERR_LINE}${NC}"
+    # Иначе — успех
     else
-      echo -e "${GREEN}Валидатор подключён успешно!${NC}"
+      echo -e "${GREEN}Валидатор успешно активирован!${NC}"
     fi
+
     show_ack
     ;;
   5)
