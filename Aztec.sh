@@ -121,7 +121,7 @@ EOF
     cd "$HOME/aztec-sequencer" || exit 1
     [ -f .env ] && export $(grep -v '^#' .env | xargs)
     tmpf=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/main/aztec/get-hash.sh > "$tmpf"
+    curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/refs/heads/main/aztec/get-hash.sh > "$tmpf"
     bash "$tmpf"
     rm -f "$tmpf"
     give_thanks
@@ -131,7 +131,7 @@ EOF
     cd "$HOME/aztec-sequencer" || exit 1
     [ -f .env ] && export $(grep -v '^#' .env | xargs)
     tmpf=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/main/aztec/register-validator.sh > "$tmpf"
+    curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/refs/heads/main/aztec/register-validator.sh > "$tmpf"
     bash "$tmpf"
     rm -f "$tmpf"
     give_thanks
