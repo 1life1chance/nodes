@@ -8,27 +8,25 @@ for tool in figlet whiptail curl docker iptables jq; do
   fi
 done
 
-# Цветовые константы
+# Цвета
 GREEN="\e[32m"
 YELLOW="\e[33m"
 CYAN="\e[36m"
 RED="\e[31m"
 NC="\e[0m"
 
-# Приветствие
 clear
+# Приветствие
 echo -e "${CYAN}$(figlet -w 120 -f standard \"Soft by The Gentleman\")${NC}"
 echo "================================================================"
 echo "      Добро пожаловать в мастер управления Aztec-нодой       "
 echo "================================================================"
 
-# Напоминание о канале
-echo
 echo -e "${YELLOW}Не забудьте подписаться: https://t.me/GentleChron${NC}"
 echo -e "${CYAN}Дальнейшие действия начнутся через 10 секунд...${NC}"
 sleep 10
 
-# Простая анимация
+# Анимация загрузки
 print_loading() {
   for dot in . . .; do
     printf "\r${GREEN}Загружаю скрипт%s${NC}" "$dot"
@@ -38,17 +36,26 @@ print_loading() {
 }
 print_loading
 
-# Главное меню (текстовый выбор)
-echo -e "${YELLOW}Выберите пункт:${NC}"
-echo -e "${CYAN}1) Установить ноду${NC}"
-echo -e "${CYAN}2) Показать логи${NC}"
-echo -e "${CYAN}3) Проверить хеш${NC}"
-echo -e "${CYAN}4) Добавить валидатора${NC}"
-echo -e "${CYAN}5) Удалить ноду${NC}"
-echo -n "Выбор: "
-read choice
+# Главное меню с whiptail
+choice=$(whiptail --title "Aztec Node Control" \
+  --menu "Выберите действие:" 16 60 5 \
+    "1" "Установить ноду" \
+    "2" "Показать логи" \
+    "3" "Проверить хеш" \
+    "4" "Добавить валидатора" \
+    "5" "Удалить ноду" \
+  3>&1 1>&2 2>&3)
+if [ $? -ne 0 ]; then
+  echo -e "${RED}Действие отменено пользователем.${NC}"
+  exit 1
+fi
 
-case "$choice" in "$choice" in
+give_ack() {
+  echo
+echo -e "${CYAN}Спасибо за выбор! Подписывайтесь: https://t.me/GentleChron${NC}"
+}
+
+case "$choice" in
   1)
     echo -e "${GREEN}Готовлю окружение и скачиваю компоненты...${NC}"
     sudo apt-get update && sudo apt-get upgrade -y
@@ -63,60 +70,56 @@ case "$choice" in "$choice" in
     sudo iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
     sudo sh -c "iptables-save > /etc/iptables/rules.v4"
 
-    mkdir -p "$HOME/aztec-sequencer"
-    cd "$HOME/aztec-sequencer" || exit 1
+    mkdir -p "$HOME/aztec-sequencer" && cd "$HOME/aztec-sequencer"
     echo -e "${YELLOW}Получаю последнюю сборку Aztec...${NC}"
-    latest=$(curl -s "https://registry.hub.docker.com/v2/repositories/aztecprotocol/aztec/tags?page_size=100" \
+    LATEST=$(curl -s "https://registry.hub.docker.com/v2/repositories/aztecprotocol/aztec/tags?page_size=100" \
       | jq -r '.results[].name' | grep -E '^0\..*-alpha-testnet\.[0-9]+' | sort -V | tail -1)
-    [ -z "$latest" ] && latest="alpha-testnet"
-    echo -e "${GREEN}Используем тег: $latest${NC}"
-    docker pull aztecprotocol/aztec:"$latest"
+    [ -z "$LATEST" ] && LATEST="alpha-testnet"
+    echo -e "${GREEN}Используем тег: $LATEST${NC}"
+    docker pull aztecprotocol/aztec:"$LATEST"
 
     read -p "RPC Sepolia URL: " RPC_URL
     read -p "Beacon Sepolia URL: " CONS_URL
     read -p "Ваш приватный ключ: " PRIV_KEY
     read -p "Адрес кошелька: " WALLET_ADDR
 
-    server_ip=$(curl -s https://api.ipify.org)
+    SERVER_IP=$(curl -s https://api.ipify.org)
     cat > .env <<EOF
 ETHEREUM_HOSTS=$RPC_URL
 L1_CONSENSUS_HOST_URLS=$CONS_URL
 VALIDATOR_PRIVATE_KEY=$PRIV_KEY
-P2P_IP=$server_ip
+P2P_IP=$SERVER_IP
 WALLET=$WALLET_ADDR
 EOF
 
-    echo -e "${GREEN}Запускаю контейнер с нодой...${NC}"
+    echo -e "${GREEN}Запускаю контейнер...${NC}"
     docker run -d --name aztec-sequencer --network host --env-file "$HOME/aztec-sequencer/.env" \
       -e DATA_DIRECTORY=/data -e LOG_LEVEL=debug -v "$HOME/aztec-sequencer/data":/data \
-      aztecprotocol/aztec:"$latest" \
+      aztecprotocol/aztec:"$LATEST" \
       sh -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
-
-    show_ack
+    give_ack
     ;;
   2)
-    echo -e "${GREEN}Показываю логи Aztec...${NC}"
+    echo -e "${GREEN}Показываю логи...${NC}"
     docker logs --tail 100 -f aztec-sequencer
-    show_ack
+    give_ack
     ;;
   3)
-    echo -e "${GREEN}Запрос хеша блока...${NC}"
-    cd "$HOME/aztec-sequencer" || exit 1
-    tip=$(curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"node_getL2Tips","params":[],"id":1}' http://localhost:8080)
-    blk=$(echo "$tip" | jq -r '.result.proven.number')
-    proof=$(curl -s -X POST -H "Content-Type: application/json" \
-      -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[${blk},${blk}],\"id\":1}" http://localhost:8080 | jq -r '.result')
-    echo -e "${GREEN}Номер блока:${NC} $blk"
-    echo -e "${GREEN}Proof:${NC} $proof"
-    show_ack
+    echo -e "${GREEN}Запрос хеша...${NC}"
+    cd "$HOME/aztec-sequencer"
+    TIP=$(curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"node_getL2Tips","params":[],"id":1}' http://localhost:8080)
+    BLK=$(echo "$TIP" | jq -r '.result.proven.number')
+    PROOF=$(curl -s -X POST -H "Content-Type: application/json" \
+      -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[${BLK},${BLK}],\"id\":1}" http://localhost:8080 | jq -r '.result')
+    echo -e "${GREEN}Block: ${NC}$BLK"
+    echo -e "${GREEN}Proof:${NC} $PROOF"
+    give_ack
     ;;
   4)
-    echo -e "${GREEN}Запускаю активацию валидатора...${NC}"
-    cd "$HOME/aztec-sequencer" || exit 1
+    echo -e "${GREEN}Запускаю подключение валидатора...${NC}"
+    cd "$HOME/aztec-sequencer"
     source .env
-
-    # Выполняем команду добавления валидатора и сохраняем полный вывод
-    RAW_OUTPUT=$(docker exec -i aztec-sequencer \
+    RAW=$(docker exec -i aztec-sequencer \
       sh -c 'node /usr/src/yarn-project/aztec/dest/bin/index.js add-l1-validator \
         --l1-rpc-urls "${ETHEREUM_HOSTS}" \
         --private-key "${VALIDATOR_PRIVATE_KEY}" \
@@ -124,30 +127,25 @@ EOF
         --proposer-eoa "${WALLET}" \
         --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
         --l1-chain-id 11155111' 2>&1) || true
-
-        # Проверяем, не заполнена ли квота
-    if echo "$RAW_OUTPUT" | grep -q 'ValidatorQuotaFilledUntil'; then
+    if echo "$RAW" | grep -q 'ValidatorQuotaFilledUntil'; then
       echo -e "${YELLOW}Регистрация временно недоступна, попробуйте позже.${NC}"
-    # Прочие ошибки — выводим кратко
-    elif echo "$RAW_OUTPUT" | grep -q 'Error:'; then
-      ERR_LINE=$(echo "$RAW_OUTPUT" | grep -m1 'Error:')
-      echo -e "${RED}Ошибка при подключении валидатора: ${ERR_LINE}${NC}"
-    # Иначе — успешно
+    elif echo "$RAW" | grep -q 'Error:'; then
+      ERR=$(echo "$RAW" | grep -m1 'Error:')
+      echo -e "${RED}Ошибка подключения: $ERR${NC}"
     else
-      echo -e "${GREEN}Валидатор успешно активирован!${NC}"
+      echo -e "${GREEN}Валидатор подключён успешно!${NC}"
     fi
-
-    show_ack
+    give_ack
     ;;
   5)
-    echo -e "${RED}Удаляю все данные ноды...${NC}"
+    echo -e "${RED}Удаляю ноду...${NC}"
     docker stop aztec-sequencer && docker rm aztec-sequencer
     rm -rf "$HOME/aztec-sequencer"
-    echo -e "${GREEN}Очистка завершена.${NC}"
-    show_ack
+    echo -e "${GREEN}Нода удалена.${NC}"
+    give_ack
     ;;
   *)
-    echo -e "${RED}Неверный выбор. Завершаю работу.${NC}"
+    echo -e "${RED}Неверный выбор.${NC}"
     exit 1
     ;;
 esac
