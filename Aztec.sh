@@ -132,13 +132,16 @@ EOF
         --l1-chain-id 11155111' 2>&1) || true
 
     # проверяем квоту
+        # обработка ситуации с заполненной квотой
     if echo "$result" | grep -q 'ValidatorQuotaFilledUntil'; then
-      ts=$(echo "$result" | grep -oP '\(\K[0-9]+')
+      ts=$(echo "$result" \
+        | grep -oP '(?<=\()[0-9]+(?=\))' \
+        | head -1)
       now=$(date +%s)
       wait=$(( (ts - now) / 60 ))
-      echo -e "${YELLOW}Квота заполнена, повторите через $wait минут.${NC}"
-    # другие ошибки
-    elif echo "$result" | grep -q 'Error:'; then
+      echo -e "${YELLOW}Квота заполнена. Повторите попытку через ${wait} минут.${NC}"
+    # остальные ошибки
+    elif echo "$result" | grep -q 'Error:'; then "$result" | grep -q 'Error:'; then
       err=$(echo "$result" | grep -m1 'Error:')
       echo -e "${RED}Ошибка при подключении: $err${NC}"
     else
