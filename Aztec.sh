@@ -125,17 +125,14 @@ EOF
         --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
         --l1-chain-id 11155111' 2>&1) || true
 
-    # Если квота занята — подскажем, когда попытаться снова
+        # Проверяем, не заполнена ли квота
     if echo "$RAW_OUTPUT" | grep -q 'ValidatorQuotaFilledUntil'; then
-      TS=$(echo "$RAW_OUTPUT" | grep -oP '(?<=\()[0-9]+(?=\))' | head -1)
-      NOW=$(date +%s)
-      MIN_LEFT=$(( (TS - NOW) / 60 ))
-      echo -e "${YELLOW}Квота заполнена. Попробуйте через ${MIN_LEFT} минут.${NC}"
-    # Другие ошибки — выводим только первую строку
+      echo -e "${YELLOW}Регистрация временно недоступна, попробуйте позже.${NC}"
+    # Прочие ошибки — выводим кратко
     elif echo "$RAW_OUTPUT" | grep -q 'Error:'; then
       ERR_LINE=$(echo "$RAW_OUTPUT" | grep -m1 'Error:')
-      echo -e "${RED}Ошибка при добавлении валидатора: ${ERR_LINE}${NC}"
-    # Иначе — успех
+      echo -e "${RED}Ошибка при подключении валидатора: ${ERR_LINE}${NC}"
+    # Иначе — успешно
     else
       echo -e "${GREEN}Валидатор успешно активирован!${NC}"
     fi
