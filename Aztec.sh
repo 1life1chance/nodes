@@ -71,7 +71,7 @@ case "$CHOICE" in
     mkdir -p "$HOME/aztec-sequencer"
     cd "$HOME/aztec-sequencer" || exit
 
-    # Определяем последний тег Aztec-образа
+    # Проверка последней ноды...
     echo -e "${YELLOW}Проверка последней ноды...${NC}"
     LATEST_TAG=$(curl -s "https://registry.hub.docker.com/v2/repositories/aztecprotocol/aztec/tags?page_size=100" \
       | jq -r '.results[].name' \
@@ -119,21 +119,34 @@ EOF
   3)
     echo -e "${GREEN}Получение хеша...${NC}"
     cd "$HOME/aztec-sequencer" || exit 1
-    [ -f .env ] && export $(grep -v '^#' .env | xargs)
-    tmpf=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/refs/heads/main/aztec/get-hash.sh > "$tmpf"
-    bash "$tmpf"
-    rm -f "$tmpf"
+    # 1) Получаем высоту последнего проверенного блока
+    TIP_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+      -d '{"jsonrpc":"2.0","method":"node_getL2Tips","params":[],"id":67}' \
+      http://localhost:8080)
+    BLOCK_NUMBER=$(printf '%s' "$TIP_RESPONSE" | jq -r '.result.proven.number')
+    # 2) Запрашиваем proof (архивную ветвь)
+    ARCHIVE_PROOF=$(curl -s -X POST -H "Content-Type: application/json" \
+      -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[${BLOCK_NUMBER},${BLOCK_NUMBER}],\"id\":67}" \
+      http://localhost:8080 | jq -r '.result')
+    echo -e "${GREEN}Block number:${NC} $BLOCK_NUMBER"
+    echo -e "${GREEN}Proof:${NC}"
+    echo "$ARCHIVE_PROOF"
     give_thanks
     ;;
   4)
     echo -e "${GREEN}Регистрация валидатора...${NC}"
     cd "$HOME/aztec-sequencer" || exit 1
-    [ -f .env ] && export $(grep -v '^#' .env | xargs)
-    tmpf=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/byGentleman/Softs/refs/heads/main/aztec/register-validator.sh > "$tmpf"
-    bash "$tmpf"
-    rm -f "$tmpf"
+    source .env
+    # Выполняем команду регистрации через Docker
+    OUTPUT=$(docker exec -i aztec-sequencer \
+      sh -c 'node /usr/src/yarn-project/aztec/dest/bin/index.js add-l1-validator \
+        --l1-rpc-urls "${ETHEREUM_HOSTS}" \
+        --private-key "${VALIDATOR_PRIVATE_KEY}" \
+        --attester "${WALLET}" \
+        --proposer-eoa "${WALLET}" \
+        --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
+        --l1-chain-id 11155111' 2>&1) || true
+    echo "$OUTPUT"
     give_thanks
     ;;
   5)
