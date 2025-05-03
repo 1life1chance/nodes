@@ -137,24 +137,22 @@ EOF
     echo -e "${GREEN}Регистрация валидатора...${NC}"
     cd "$HOME/aztec-sequencer" || exit 1
     source .env
-    # Выполняем команду регистрации через Docker
-    OUTPUT=$(docker exec -i aztec-sequencer \
+        # Выполняем команду регистрации через Docker и обрабатываем ошибки
+    echo -e "${YELLOW}Регистрация валидатора через внутр. CLI...${NC}"
+    REG_OUTPUT=$(docker exec -i aztec-sequencer \
       sh -c 'node /usr/src/yarn-project/aztec/dest/bin/index.js add-l1-validator \
         --l1-rpc-urls "${ETHEREUM_HOSTS}" \
         --private-key "${VALIDATOR_PRIVATE_KEY}" \
         --attester "${WALLET}" \
         --proposer-eoa "${WALLET}" \
         --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
-        --l1-chain-id 11155111' 2>&1) || true
-    echo "$OUTPUT"
-    give_thanks
-    ;;
-  5)
-    echo -e "${RED}Полное удаление ноды...${NC}"
-    docker stop aztec-sequencer
-    docker rm aztec-sequencer
-    rm -rf "$HOME/aztec-sequencer"
-    echo -e "${GREEN}Нода удалена.${NC}"
+        --l1-chain-id 11155111' 2>&1)
+    if echo "$REG_OUTPUT" | grep -q "ERROR:"; then
+      echo -e "${RED}Ошибка регистрации валидатора:${NC}"
+      echo "$REG_OUTPUT" | grep -m1 "ERROR:"
+    else
+      echo -e "${GREEN}Валидатор успешно зарегистрирован!${NC}"
+    fi
     give_thanks
     ;;
   *)
