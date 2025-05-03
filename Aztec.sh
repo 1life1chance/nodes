@@ -71,7 +71,6 @@ case "$CHOICE" in
     mkdir -p "$HOME/aztec-sequencer"
     cd "$HOME/aztec-sequencer" || exit
 
-    # Проверка последней ноды...
     echo -e "${YELLOW}Проверка последней ноды...${NC}"
     LATEST_TAG=$(curl -s "https://registry.hub.docker.com/v2/repositories/aztecprotocol/aztec/tags?page_size=100" \
       | jq -r '.results[].name' \
@@ -119,12 +118,10 @@ EOF
   3)
     echo -e "${GREEN}Получение хеша...${NC}"
     cd "$HOME/aztec-sequencer" || exit 1
-    # 1) Получаем высоту последнего проверенного блока
     TIP_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
       -d '{"jsonrpc":"2.0","method":"node_getL2Tips","params":[],"id":67}' \
       http://localhost:8080)
     BLOCK_NUMBER=$(printf '%s' "$TIP_RESPONSE" | jq -r '.result.proven.number')
-    # 2) Запрашиваем proof (архивную ветвь)
     ARCHIVE_PROOF=$(curl -s -X POST -H "Content-Type: application/json" \
       -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[${BLOCK_NUMBER},${BLOCK_NUMBER}],\"id\":67}" \
       http://localhost:8080 | jq -r '.result')
@@ -137,8 +134,7 @@ EOF
     echo -e "${GREEN}Регистрация валидатора...${NC}"
     cd "$HOME/aztec-sequencer" || exit 1
     source .env
-        # Выполняем команду регистрации через Docker и обрабатываем ошибки
-    echo -e "${YELLOW}Регистрация валидатора через внутр. CLI...${NC}"
+    echo -e "${YELLOW}Регистрация валидатора через внутренний CLI...${NC}"
     REG_OUTPUT=$(docker exec -i aztec-sequencer \
       sh -c 'node /usr/src/yarn-project/aztec/dest/bin/index.js add-l1-validator \
         --l1-rpc-urls "${ETHEREUM_HOSTS}" \
@@ -153,6 +149,14 @@ EOF
     else
       echo -e "${GREEN}Валидатор успешно зарегистрирован!${NC}"
     fi
+    give_thanks
+    ;;
+  5)
+    echo -e "${RED}Полное удаление ноды...${NC}"
+    docker stop aztec-sequencer
+    docker rm aztec-sequencer
+    rm -rf "$HOME/aztec-sequencer"
+    echo -e "${GREEN}Нода удалена.${NC}"
     give_thanks
     ;;
   *)
