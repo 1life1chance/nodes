@@ -62,7 +62,7 @@ case "$CHOICE" in
   1)
     echo -e "${GREEN}Готовлю окружение...${NC}"
     sudo apt-get update && sudo apt-get upgrade -y
-    sudo apt install -y build-essential git jq lz4 make nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev clang bsdmainutils ncdu unzip qemu-user-static
+    sudo apt install -y build-essential git jq lz4 make nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev clang bsdmainutils ncdu unzip
 
     if ! command -v docker &>/dev/null; then
       curl -fsSL https://get.docker.com | sh
@@ -78,12 +78,15 @@ case "$CHOICE" in
 
     mkdir -p "$HOME/aztec-sequencer/data" && cd "$HOME/aztec-sequencer"
 
-    echo -e "${YELLOW}Получаем последнюю сборку Aztec...${NC}"
+    echo -e "${YELLOW}Получаем последнюю сборку Aztec (без ARM64)...${NC}"
     LATEST=$(curl -s "https://registry.hub.docker.com/v2/repositories/aztecprotocol/aztec/tags?page_size=100" \
-      | jq -r '.results[].name' | grep -E '^0\..*-alpha-testnet\.[0-9]+' | sort -V | tail -1)
+      | jq -r '.results[].name' \
+      | grep -E '^0\..*-alpha-testnet\.[0-9]+$' \
+      | grep -v 'arm64' \
+      | sort -V | tail -1)
 
     if [ -z "$LATEST" ]; then
-      echo -e "${RED}⚠️ Не удалось определить последнюю версию. Использую 'alpha-testnet'.${NC}"
+      echo -e "${RED}❌ Не удалось найти подходящий тег. Использую alpha-testnet.${NC}"
       LATEST="alpha-testnet"
     fi
 
@@ -104,18 +107,8 @@ P2P_IP=$SERVER_IP
 WALLET=$WALLET_ADDR
 EOF
 
-    echo -e "${GREEN}Проверка архитектуры...${NC}"
-    HOST_ARCH=$(uname -m)
-    PLATFORM_FLAG=""
-
-    if [[ "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ]]; then
-      echo -e "${YELLOW}Хост ARM64. Настраиваем эмуляцию для запуска amd64-образа...${NC}"
-      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-      PLATFORM_FLAG="--platform linux/amd64"
-    fi
-
     echo -e "${GREEN}Запускаем контейнер...${NC}"
-    docker run $PLATFORM_FLAG -d \
+    docker run --platform linux/amd64 -d \
       --name aztec-sequencer \
       --network host \
       --env-file "$HOME/aztec-sequencer/.env" \
