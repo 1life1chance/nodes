@@ -16,7 +16,7 @@ RED="\e[31m"
 NC="\e[0m"
 
 # Приветствие (без clear)
-echo -e "\n\n"  # Просто отступ без стирания истории
+echo -e "\n\n"
 echo -e "${CYAN}$(figlet -w 150 -f standard \"Soft by The Gentleman\")${NC}"
 echo "================================================================"
 echo "      Добро пожаловать в мастер установки ноды Aztec от Джентльмена       "
@@ -36,7 +36,7 @@ animate() {
 }
 animate
 
-# Главное меню через whiptail
+# Главное меню
 CHOICE=$(whiptail --title "Aztec Node Control" \
   --menu "Выберите действие:" 15 60 5 \
     "1" "Установить ноду" \
@@ -46,24 +46,22 @@ CHOICE=$(whiptail --title "Aztec Node Control" \
     "5" "Удалить ноду" \
   3>&1 1>&2 2>&3)
 
-# Если пользователь нажал Esc или Cancel
 if [ $? -ne 0 ]; then
   echo -e "${RED}Отмена. Выход.${NC}"
   exit 1
 fi
 
-# Благодарность
 give_ack() {
   echo
   echo -e "${CYAN}Спасибо! Подписывайтесь: https://t.me/GentleChron${NC}"
 }
 
 case "$CHOICE" in
-
   1)
     echo -e "${GREEN}Готовлю окружение...${NC}"
     sudo apt-get update && sudo apt-get upgrade -y
-    sudo apt install -y build-essential git jq lz4 make nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev clang bsdmainutils ncdu unzip
+    sudo apt install -y build-essential git jq lz4 make nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev clang bsdmainutils ncdu unzip qemu-user-static
+
     if ! command -v docker &>/dev/null; then
       curl -fsSL https://get.docker.com | sh
       sudo usermod -aG docker "$USER"
@@ -96,11 +94,24 @@ P2P_IP=$SERVER_IP
 WALLET=$WALLET_ADDR
 EOF
 
+    echo -e "${GREEN}Проверка архитектур...${NC}"
+    HOST_ARCH=$(uname -m)
+    PLATFORM_FLAG=""
+
+    if [ "$HOST_ARCH" = "x86_64" ]; then
+      echo -e "${YELLOW}Хост: amd64, образ: arm64 — настраиваем эмуляцию...${NC}"
+      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      PLATFORM_FLAG="--platform linux/arm64"
+    else
+      echo -e "${GREEN}Архитектура совпадает, эмуляция не требуется.${NC}"
+    fi
+
     echo -e "${GREEN}Запускаем контейнер...${NC}"
-    docker run -d --name aztec-sequencer --network host --env-file "$HOME/aztec-sequencer/.env" \
+    docker run $PLATFORM_FLAG -d --name aztec-sequencer --network host --env-file "$HOME/aztec-sequencer/.env" \
       -e DATA_DIRECTORY=/data -e LOG_LEVEL=debug -v "$HOME/aztec-sequencer/data":/data \
       aztecprotocol/aztec:"$LATEST" \
       sh -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
+
     give_ack
     ;;
 
@@ -123,10 +134,9 @@ EOF
     ;;
 
   4)
-    echo -e "${GREEN}Запускаю процедуру регистрации валидатора...${NC}"
+    echo -e "${GREEN}Запускаю регистрацию валидатора...${NC}"
     cd "$HOME/aztec-sequencer"
     [ -f .env ] && export $(grep -v '^#' .env | xargs)
-
     tmpnv=$(mktemp)
     curl -fsSL https://raw.githubusercontent.com/TheGentIeman/Nodes/refs/heads/main/NewValidator.sh > "$tmpnv"
     chmod +x "$tmpnv"
