@@ -8,14 +8,14 @@ for util in figlet whiptail curl docker iptables jq; do
   fi
 done
 
-# Цветовые константы
+# Цвета
 GREEN="\e[32m"
 YELLOW="\e[33m"
 CYAN="\e[36m"
 RED="\e[31m"
 NC="\e[0m"
 
-# Приветствие (без clear)
+# Приветствие
 echo -e "\n\n"
 echo -e "${CYAN}$(figlet -w 150 -f standard \"Soft by The Gentleman\")${NC}"
 echo "================================================================"
@@ -26,7 +26,7 @@ echo -e "${YELLOW}Подписывайтесь на Telegram: https://t.me/Gentl
 echo -e "${CYAN}Продолжение через 10 секунд...${NC}"
 sleep 10
 
-# Анимация загрузки
+# Анимация
 animate() {
   for i in {1..3}; do
     printf "\r${GREEN}Загрузка${NC}%s" "$(printf '.%.0s' $(seq 1 $i))"
@@ -36,7 +36,7 @@ animate() {
 }
 animate
 
-# Главное меню
+# Меню выбора
 CHOICE=$(whiptail --title "Aztec Node Control" \
   --menu "Выберите действие:" 15 60 5 \
     "1" "Установить ноду" \
@@ -46,11 +46,13 @@ CHOICE=$(whiptail --title "Aztec Node Control" \
     "5" "Удалить ноду" \
   3>&1 1>&2 2>&3)
 
+# Выход при отмене
 if [ $? -ne 0 ]; then
   echo -e "${RED}Отмена. Выход.${NC}"
   exit 1
 fi
 
+# Благодарность
 give_ack() {
   echo
   echo -e "${CYAN}Спасибо! Подписывайтесь: https://t.me/GentleChron${NC}"
@@ -66,17 +68,25 @@ case "$CHOICE" in
       curl -fsSL https://get.docker.com | sh
       sudo usermod -aG docker "$USER"
     fi
+    sudo systemctl start docker
     sudo chmod 666 /var/run/docker.sock
+
     sudo iptables -I INPUT -p tcp --dport 40400 -j ACCEPT
     sudo iptables -I INPUT -p udp --dport 40400 -j ACCEPT
     sudo iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
     sudo sh -c "iptables-save > /etc/iptables/rules.v4"
 
-    mkdir -p "$HOME/aztec-sequencer" && cd "$HOME/aztec-sequencer"
+    mkdir -p "$HOME/aztec-sequencer/data" && cd "$HOME/aztec-sequencer"
+
     echo -e "${YELLOW}Получаем последнюю сборку Aztec...${NC}"
     LATEST=$(curl -s "https://registry.hub.docker.com/v2/repositories/aztecprotocol/aztec/tags?page_size=100" \
       | jq -r '.results[].name' | grep -E '^0\..*-alpha-testnet\.[0-9]+' | sort -V | tail -1)
-    [ -z "$LATEST" ] && LATEST="alpha-testnet"
+
+    if [ -z "$LATEST" ]; then
+      echo -e "${RED}⚠️ Не удалось определить последнюю версию. Использую 'alpha-testnet'.${NC}"
+      LATEST="alpha-testnet"
+    fi
+
     echo -e "${GREEN}Используем тег: $LATEST${NC}"
     docker pull aztecprotocol/aztec:"$LATEST"
 
@@ -94,23 +104,34 @@ P2P_IP=$SERVER_IP
 WALLET=$WALLET_ADDR
 EOF
 
-    echo -e "${GREEN}Проверка архитектур...${NC}"
+    echo -e "${GREEN}Проверка архитектуры...${NC}"
     HOST_ARCH=$(uname -m)
     PLATFORM_FLAG=""
 
-    if [ "$HOST_ARCH" = "x86_64" ]; then
-      echo -e "${YELLOW}Хост: amd64, образ: arm64 — настраиваем эмуляцию...${NC}"
+    if [[ "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ]]; then
+      echo -e "${YELLOW}Хост ARM64. Настраиваем эмуляцию для запуска amd64-образа...${NC}"
       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-      PLATFORM_FLAG="--platform linux/arm64"
-    else
-      echo -e "${GREEN}Архитектура совпадает, эмуляция не требуется.${NC}"
+      PLATFORM_FLAG="--platform linux/amd64"
     fi
 
     echo -e "${GREEN}Запускаем контейнер...${NC}"
-    docker run $PLATFORM_FLAG -d --name aztec-sequencer --network host --env-file "$HOME/aztec-sequencer/.env" \
-      -e DATA_DIRECTORY=/data -e LOG_LEVEL=debug -v "$HOME/aztec-sequencer/data":/data \
+    docker run $PLATFORM_FLAG -d \
+      --name aztec-sequencer \
+      --network host \
+      --env-file "$HOME/aztec-sequencer/.env" \
+      -e DATA_DIRECTORY=/data \
+      -e LOG_LEVEL=debug \
+      -v "$HOME/aztec-sequencer/data":/data \
       aztecprotocol/aztec:"$LATEST" \
       sh -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
+
+    if [ $? -ne 0 ]; then
+      echo -e "${RED}❌ Контейнер не запущен. Проверьте лог ошибок через:${NC}"
+      echo "docker logs aztec-sequencer"
+    else
+      echo -e "${GREEN}✅ Нода успешно запущена.${NC}"
+      docker logs --tail 100 -f aztec-sequencer
+    fi
 
     give_ack
     ;;
