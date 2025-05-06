@@ -18,9 +18,9 @@ NC="\e[0m"
 # Приветствие
 echo -e "\n\n"
 echo -e "${CYAN}$(figlet -w 150 -f standard \"Soft by The Gentleman\")${NC}"
-echo "================================================================"
+echo "=========================================================================="
 echo "      Добро пожаловать в мастер установки ноды Aztec от Джентльмена       "
-echo "================================================================"
+echo "=========================================================================="
 
 echo -e "${YELLOW}Подписывайтесь на Telegram: https://t.me/GentleChron${NC}"
 echo -e "${CYAN}Продолжение через 10 секунд...${NC}"
@@ -38,12 +38,13 @@ animate
 
 # Меню выбора
 CHOICE=$(whiptail --title "Aztec Node Control" \
-  --menu "Выберите действие:" 15 60 5 \
+  --menu "Выберите действие:" 16 60 6 \
     "1" "Установить ноду" \
     "2" "Показать логи" \
     "3" "Проверить хеш" \
     "4" "Зарегистрировать валидатора" \
     "5" "Удалить ноду" \
+    "6" "Обновить ноду" \
   3>&1 1>&2 2>&3)
 
 # Выход при отмене
@@ -164,6 +165,52 @@ EOF
     docker stop aztec-sequencer && docker rm aztec-sequencer
     rm -rf "$HOME/aztec-sequencer"
     echo -e "${GREEN}Нода удалена.${NC}"
+    give_ack
+    ;;
+
+  6)
+    echo -e "${YELLOW}Обновление ноды Aztec...${NC}"
+    cd "$HOME/aztec-sequencer" || { echo -e "${RED}Папка ноды не найдена.${NC}"; exit 1; }
+
+    echo -e "${GREEN}Получаем актуальный тег...${NC}"
+    NEW_TAG=$(curl -s "https://registry.hub.docker.com/v2/repositories/aztecprotocol/aztec/tags?page_size=100" \
+      | jq -r '.results[].name' \
+      | grep -E '^0\..*-alpha-testnet\.[0-9]+$' \
+      | grep -v 'arm64' \
+      | sort -V | tail -1)
+
+    if [ -z "$NEW_TAG" ]; then
+      echo -e "${RED}❌ Не удалось определить тег. Используем alpha-testnet.${NC}"
+      NEW_TAG="alpha-testnet"
+    fi
+
+    echo -e "${CYAN}Обновляем образ до: $NEW_TAG${NC}"
+    docker pull aztecprotocol/aztec:"$NEW_TAG"
+
+    echo -e "${YELLOW}Останавливаем текущий контейнер...${NC}"
+    docker stop aztec-sequencer && docker rm aztec-sequencer
+
+    echo -e "${YELLOW}Очищаем старые данные...${NC}"
+    rm -rf "$HOME/aztec-sequencer/data"/*
+    mkdir -p "$HOME/aztec-sequencer/data"
+
+    echo -e "${GREEN}Запускаем обновлённую ноду...${NC}"
+    docker run --platform linux/amd64 -d \
+      --name aztec-sequencer \
+      --network host \
+      --env-file "$HOME/aztec-sequencer/.env" \
+      -e DATA_DIRECTORY=/data \
+      -e LOG_LEVEL=debug \
+      -v "$HOME/aztec-sequencer/data":/data \
+      aztecprotocol/aztec:"$NEW_TAG" \
+      sh -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
+
+    if [ $? -ne 0 ]; then
+      echo -e "${RED}❌ Обновление завершилось с ошибкой. Проверьте логи.${NC}"
+    else
+      echo -e "${GREEN}✅ Обновление прошло успешно.${NC}"
+      docker logs --tail 100 -f aztec-sequencer
+    fi
     give_ack
     ;;
 
