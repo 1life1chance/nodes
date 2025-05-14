@@ -10,9 +10,19 @@ PINK="\e[35m"
 NC="\e[0m"
 
 INSTALL_DIR="/opt/popcache"
-BIN_URL="https://download.pipe.network/pop"
 BIN_NAME="pop"
 USER="popcache"
+
+# Автоопределение архитектуры
+ARCH=$(uname -m)
+if [[ "$ARCH" == "x86_64" ]]; then
+    BIN_URL="https://download.pipe.network/pop-x86_64"
+elif [[ "$ARCH" == "aarch64" ]]; then
+    BIN_URL="https://download.pipe.network/pop-arm64"
+else
+    echo -e "${RED}❌ Неизвестная архитектура: $ARCH. Установка прервана.${NC}"
+    exit 1
+fi
 
 # Обновление и установка необходимых пакетов
 echo -e "${YELLOW}Обновляем систему перед установкой...${NC}"
@@ -68,7 +78,7 @@ install_node() {
     sudo mkdir -p $INSTALL_DIR/cache $INSTALL_DIR/logs
     sudo chown -R $USER:$USER $INSTALL_DIR
 
-    echo -e "${GREEN}Скачиваем бинарник...${NC}"
+    echo -e "${GREEN}Скачиваем бинарник ($ARCH)...${NC}"
     sudo wget -O $INSTALL_DIR/$BIN_NAME $BIN_URL
     sudo chmod +x $INSTALL_DIR/$BIN_NAME
 
