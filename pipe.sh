@@ -1,19 +1,6 @@
 #!/bin/bash
-echo "Обновляем систему перед настройкой..."
-sudo apt update -y && sudo apt upgrade -y
 
-# Проверка наличия необходимых утилит, установка если отсутствуют
-if ! command -v figlet &> /dev/null; then
-    echo "figlet не найден. Устанавливаем..."
-    sudo apt update && sudo apt install -y figlet
-fi
-
-if ! command -v whiptail &> /dev/null; then
-    echo "whiptail не найден. Устанавливаем..."
-    sudo apt update && sudo apt install -y whiptail
-fi
-
-# Определяем цвета для удобства
+# Цвета
 YELLOW="\e[33m"
 CYAN="\e[36m"
 BLUE="\e[34m"
@@ -22,25 +9,32 @@ RED="\e[31m"
 PINK="\e[35m"
 NC="\e[0m"
 
-install_dependencies() {
-    echo -e "${GREEN}Устанавливаем необходимые пакеты...${NC}"
-    sudo apt update && sudo apt install -y curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip screen
-}
+INSTALL_DIR="/opt/popcache"
+BIN_URL="https://download.pipe.network/pop"
+BIN_NAME="pop"
+USER="popcache"
 
-# Вывод приветственного текста с помощью figlet
-echo -e "${PINK}$(figlet -w 150 -f standard "Softs by Gentleman")${NC}"
-echo -e "${PINK}$(figlet -w 150 -f standard "x WESNA")${NC}"
+# Обновление и установка необходимых пакетов
+echo -e "${YELLOW}Обновляем систему перед установкой...${NC}"
+sudo apt update -y && sudo apt upgrade -y
 
+if ! command -v figlet &> /dev/null; then
+    sudo apt install -y figlet
+fi
+if ! command -v whiptail &> /dev/null; then
+    sudo apt install -y whiptail
+fi
+
+# Приветствие
+echo -e "${PINK}$(figlet -w 150 -f standard "Softs by The Gentleman")${NC}"
 echo "===================================================================================================================================="
-echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-каналы для обновлений и поддержки: "
+echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на мой Telegram-канал для обновлений и поддержки: "
 echo ""
-echo "Gentleman - https://t.me/GentleChron"
-echo "Wesna - https://t.me/softs_by_wesna"
+echo "The Gentleman - https://t.me/GentleChron"
 echo "===================================================================================================================================="
-
 echo ""
 
-# Определение функции анимации
+# Анимация
 animate_loading() {
     for ((i = 1; i <= 5; i++)); do
         printf "\r${GREEN}Подгружаем меню${NC}."
@@ -49,159 +43,162 @@ animate_loading() {
         sleep 0.3
         printf "\r${GREEN}Подгружаем меню${NC}..."
         sleep 0.3
-        printf "\r${GREEN}Подгружаем меню${NC}"
+        printf "\r${GREEN}Подгружаем меню${NC}   "
         sleep 0.3
     done
     echo ""
 }
 
-# Вызов функции анимации
-animate_loading
-echo ""
+install_dependencies() {
+    echo -e "${GREEN}Устанавливаем зависимости...${NC}"
+    sudo apt install -y curl iptables build-essential git wget jq tmux htop pkg-config \
+        libssl-dev libleveldb-dev tar clang ncdu unzip screen ca-certificates
+}
 
-# Функция для установки ноды
 install_node() {
-    echo -e "${BLUE}Начинаем установку ноды...${NC}"
-
-    # Обновление и установка зависимостей
+    echo -e "${BLUE}Начинаем установку POP Cache Node...${NC}"
     install_dependencies
 
-    # Создание директории для кэша и переход в неё
-    mkdir -p ~/pipe/download_cache
-    cd ~/pipe
+    INVITE=$(whiptail --inputbox "Введите ваш invite code:" 10 60 --title "Invite Code" 3>&1 1>&2 2>&3)
+    SOLANA=$(whiptail --inputbox "Введите ваш публичный Solana-адрес для наград:" 10 60 --title "Solana Pubkey" 3>&1 1>&2 2>&3)
 
-    # Скачиваем файл pop
-    wget https://dl.pipecdn.app/v0.2.8/pop
+    echo -e "${GREEN}Создаем пользователя и директории...${NC}"
+    sudo useradd -m -s /bin/bash $USER || true
+    sudo usermod -aG sudo $USER || true
+    sudo mkdir -p $INSTALL_DIR/cache $INSTALL_DIR/logs
+    sudo chown -R $USER:$USER $INSTALL_DIR
 
-    # Делаем файл исполнимым
-    chmod +x pop
+    echo -e "${GREEN}Скачиваем бинарник...${NC}"
+    sudo wget -O $INSTALL_DIR/$BIN_NAME $BIN_URL
+    sudo chmod +x $INSTALL_DIR/$BIN_NAME
 
-    # Создание новой сессии в screen
-    screen -S pipe2 -dm
+    echo -e "${GREEN}Настраиваем системные параметры...${NC}"
+    cat <<EOF | sudo tee /etc/sysctl.d/99-popcache.conf
+net.ipv4.ip_local_port_range = 1024 65535
+net.core.somaxconn = 65535
+net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_wmem = 4096 65536 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.core.wmem_max = 16777216
+net.core.rmem_max = 16777216
+EOF
+    sudo sysctl -p /etc/sysctl.d/99-popcache.conf
 
-    echo -e "${YELLOW}Введите ваш публичный адрес Solana:${NC}"
-    read SOLANA_PUB_KEY
-    
-    # Запрос значения для RAM
-    echo -e "${YELLOW}Введите количество RAM в ГБ (целое число):${NC}"
-    read RAM
-    
-    # Запрос значения для max-disk
-    echo -e "${YELLOW}Введите количество max-disk в ГБ (целое число):${NC}"
-    read DISK
-    
-    # Запуск команды с параметрами, с указанием публичного ключа Solana, RAM и max-disk
-    screen -S pipe2 -X stuff "./pop --ram $RAM --max-disk $DISK --cache-dir ~/pipe/download_cache --pubKey $SOLANA_PUB_KEY\n"
-    sleep 3
-    screen -S pipe2 -X stuff "e4313e9d866ee3df\n"
+    cat <<EOF | sudo tee /etc/security/limits.d/popcache.conf
+*    hard nofile 65535
+*    soft nofile 65535
+EOF
 
-    echo -e "${GREEN}Процесс установки и запуска завершён!${NC}"
+    # config.json
+    cat <<EOF | sudo tee $INSTALL_DIR/config.json
+{
+  "pop_name": "gentle-pop",
+  "pop_location": "Earth, Internet",
+  "invite_code": "$INVITE",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 443,
+    "http_port": 80,
+    "workers": 0
+  },
+  "cache_config": {
+    "memory_cache_size_mb": 8192,
+    "disk_cache_path": "./cache",
+    "disk_cache_size_gb": 100,
+    "default_ttl_seconds": 86400,
+    "respect_origin_headers": true,
+    "max_cacheable_size_mb": 1024
+  },
+  "api_endpoints": {
+    "base_url": "https://dataplane.pipenetwork.com"
+  },
+  "identity_config": {
+    "node_name": "gentleman-node",
+    "name": "Gentleman",
+    "email": "email@example.com",
+    "website": "https://your-site.com",
+    "twitter": "gentleman_xyz",
+    "discord": "gentledev",
+    "telegram": "gentle_tech",
+    "solana_pubkey": "$SOLANA"
+  }
 }
+EOF
 
-# Функция для проверки статуса ноды
-check_status() {
-    echo -e "${BLUE}Проверка статуса ноды...${NC}"
-    
-    cd pipe
-    ./pop --status
-    cd ..
-}
+    # systemd unit
+    cat <<EOF | sudo tee /etc/systemd/system/popcache.service
+[Unit]
+Description=POP Cache Node
+After=network.target
 
-# Функция для проверки поинтов ноды
-check_points() {
-    echo -e "${BLUE}Проверка поинтов ноды...${NC}"
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$INSTALL_DIR/$BIN_NAME
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+StandardOutput=append:$INSTALL_DIR/logs/stdout.log
+StandardError=append:$INSTALL_DIR/logs/stderr.log
+Environment=POP_CONFIG_PATH=$INSTALL_DIR/config.json
 
-    cd pipe
-    
-    ./pop --points
-    
-    cd ..
-}
+[Install]
+WantedBy=multi-user.target
+EOF
 
-update_node() {
-    echo -e "${BLUE}Обновление до версии 0.2.8...${NC}"
-
-    # Остановка процесса pop
-    echo -e "${YELLOW}Останавливаем службу pipe-pop...${NC}"
-    ps aux | grep '[p]op' | awk '{print $2}' | xargs kill
-
-    # Переход в директорию pipe
-    cd ~/pipe
-
-    # Удаление старой версии pop
-    echo -e "${YELLOW}Удаляем старую версию pop...${NC}"
-    rm -f pop
-
-    # Скачивание новой версии pop
-    echo -e "${YELLOW}Скачиваем новую версию pop...${NC}"
-    wget -O pop "https://dl.pipecdn.app/v0.2.8/pop"
-
-    # Делаем файл исполнимым
-    chmod +x pop
-
-    # Перезагрузка системных служб
+    echo -e "${GREEN}Запускаем сервис...${NC}"
+    sudo systemctl daemon-reexec
     sudo systemctl daemon-reload
-    # Завершаем сессию screen с именем 'pipe2', если она существует
-    if screen -list | grep -q "pipe2"; then
-    screen -S pipe2 -X quit
-    fi
-    sleep 2
-    
-    # Перезапуск сессии screen с именем 'pipe2' и запуск pop
-    screen -S pipe2 -dm ./pop
-    
-    sleep 5
-    screen -S pipe2 -X stuff "y\n"
-    
-    echo -e "${GREEN}Обновление завершено!${NC}"
+    sudo systemctl enable popcache
+    sudo systemctl start popcache
+
+    echo -e "${GREEN}Открываем порты...${NC}"
+    sudo ufw allow 80/tcp || true
+    sudo ufw allow 443/tcp || true
+
+    echo -e "${GREEN}Установка завершена. Проверка статуса:${NC}"
+    sudo systemctl status popcache --no-pager
 }
 
-# Функция для удаления ноды
 remove_node() {
-    echo -e "${BLUE}Удаляем ноду...${NC}"
-
-     pkill -f pop
-
-    # Завершаем сеанс screen с именем 'pipe2' и удаляем его
-    screen -S pipe2 -X quit
-
-    # Удаление файлов ноды
-    sudo rm -rf ~/pipe
-
-    echo -e "${GREEN}Нода успешно удалена!${NC}"
+    echo -e "${RED}Удаляем POP Cache Node...${NC}"
+    sudo systemctl stop popcache
+    sudo systemctl disable popcache
+    sudo rm -rf $INSTALL_DIR
+    sudo rm -f /etc/systemd/system/popcache.service
+    sudo systemctl daemon-reload
+    echo -e "${GREEN}Нода полностью удалена.${NC}"
 }
 
-# Основное меню
-CHOICE=$(whiptail --title "Меню действий" \
-    --menu "Выберите действие:" 15 50 6 \
-    "1" "Установка ноды" \
-    "2" "Проверка статуса ноды" \
-    "3" "Проверка поинтов ноды" \
-    "4" "Удаление ноды" \
-    "5" "Обновление ноды" \
-    "6" "Выход" \
+# Главное меню
+animate_loading
+CHOICE=$(whiptail --title "PIPE Node Установщик" \
+    --menu "Выберите действие:" 16 60 6 \
+    "1" "Установить POP Cache Node" \
+    "2" "Проверить статус" \
+    "3" "Удалить ноду" \
+    "4" "Выход" \
     3>&1 1>&2 2>&3)
 
 case $CHOICE in
-    1) 
+    1)
         install_node
         ;;
-    2) 
-        check_status
+    2)
+        echo -e "${BLUE}Статус сервиса:${NC}"
+        systemctl status popcache --no-pager
         ;;
-    3) 
-        check_points
-        ;;
-    4) 
+    3)
         remove_node
         ;;
-    5)
-        update_node
-        ;;
-    6)
-        echo -e "${CYAN}Выход из программы.${NC}"
+    4)
+        echo -e "${CYAN}Выход.${NC}"
         ;;
     *)
-        echo -e "${RED}Неверный выбор. Завершение программы.${NC}"
+        echo -e "${RED}Неверный выбор.${NC}"
         ;;
 esac
