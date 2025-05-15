@@ -136,16 +136,26 @@ restart_node() {
   echo -e "${GREEN}Нода перезапущена.${NC}"
 }
 
+# Удаление
+remove_node() {
+  echo -e "${RED}Удаление ноды...${NC}"
+  screen -S popnode -X quit || true
+  pkill -f $BIN_NAME || true
+  rm -rf $INSTALL_DIR
+  echo -e "${GREEN}Нода удалена полностью.${NC}"
+}
+
 # Меню
 animate_loading
 CHOICE=$(whiptail --title "PIPE Node Меню" \
-  --menu "Выберите действие:" 20 60 10 \
+  --menu "Выберите действие:" 20 60 12 \
   "1" "Установить ноду" \
   "2" "Проверить статус" \
   "3" "Показать лог (50 строк)" \
   "4" "Зайти в screen" \
   "5" "Перезапустить ноду" \
-  "6" "Выход" \
+  "6" "Удалить ноду" \
+  "7" "Выход" \
   3>&1 1>&2 2>&3)
 
 case $CHOICE in
@@ -154,6 +164,7 @@ case $CHOICE in
   3) show_log ;;
   4) attach_screen ;;
   5) restart_node ;;
-  6) echo -e "${CYAN}Выход.${NC}" ;;
+  6) remove_node ;;
+  7) echo -e "${CYAN}Выход.${NC}" ;;
   *) echo -e "${RED}Неверный выбор.${NC}" ;;
 esac
