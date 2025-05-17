@@ -9,19 +9,17 @@ RED="\e[31m"
 PINK="\e[35m"
 NC="\e[0m"
 
-INSTALL_DIR=~/pipe
-BIN_NAME=pop
+INSTALL_DIR=/opt/popcache
 CONFIG=$INSTALL_DIR/config.json
-LOG_FILE=$INSTALL_DIR/pop.log
-
-# Обновление и зависимости
-sudo apt update -y && sudo apt install -y figlet whiptail curl screen wget
+BIN_NAME=pop
+DOCKER_IMAGE=popnode
+DOCKER_CONTAINER=popnode
 
 # Приветствие
 clear
 echo -e "${PINK}$(figlet -w 150 -f standard \"Softs by The Gentleman\")${NC}"
 echo "============================================================================================================================="
-echo "Добро пожаловать! Пока идёт установка, подпишись на мой Telegram-канал:"
+echo "Добро пожаловать! Пока идёт установка, подпишись на Telegram-канал для новостей и поддержки:"
 echo ""
 echo "The Gentleman — https://t.me/GentleChron"
 echo "============================================================================================================================="
@@ -41,130 +39,191 @@ animate_loading() {
   echo ""
 }
 
-# Установка
 install_node() {
-  mkdir -p $INSTALL_DIR/download_cache
-  cd $INSTALL_DIR || exit
+  echo -e "${BLUE}Начинаем установку...${NC}"
+  sudo apt update -y
+  sudo apt install -y curl libssl-dev ca-certificates jq docker.io iptables iptables-persistent
 
-  INVITE=$(whiptail --inputbox "Введите ваш invite code:" 10 60 --title "Invite Code" 3>&1 1>&2 2>&3)
-  SOLANA=$(whiptail --inputbox "Введите ваш Solana-адрес:" 10 60 --title "Solana" 3>&1 1>&2 2>&3)
-  RAM=$(whiptail --inputbox "RAM (в ГБ) под кэш:" 10 60 --title "RAM" 3>&1 1>&2 2>&3)
-  DISK=$(whiptail --inputbox "Диск (в ГБ) под кэш:" 10 60 --title "Disk" 3>&1 1>&2 2>&3)
+  sudo mkdir -p $INSTALL_DIR && cd $INSTALL_DIR
 
-  NAME=$(whiptail --inputbox "Имя вашей ноды:" 10 60 --title "Node name" 3>&1 1>&2 2>&3)
-  EMAIL=$(whiptail --inputbox "Email:" 10 60 --title "Email" 3>&1 1>&2 2>&3)
-  SITE=$(whiptail --inputbox "Сайт (https://...):" 10 60 --title "Website" 3>&1 1>&2 2>&3)
-  TG=$(whiptail --inputbox "Telegram (@...):" 10 60 --title "Telegram" 3>&1 1>&2 2>&3)
-  DISCORD=$(whiptail --inputbox "Discord (name#0000):" 10 60 --title "Discord" 3>&1 1>&2 2>&3)
-  TWITTER=$(whiptail --inputbox "Twitter (@...):" 10 60 --title "Twitter" 3>&1 1>&2 2>&3)
+  echo -e "${YELLOW}Введите invite-код:${NC}"
+  read INVITE
+  echo -e "${YELLOW}Придумайте имя для ноды:${NC}"
+  read NODE_NAME
+  echo -e "${YELLOW}Введите ваше имя или ник:${NC}"
+  read USER_NAME
+  echo -e "${YELLOW}Введите Telegram (@без_собачки):${NC}"
+  read TELEGRAM
+  echo -e "${YELLOW}Введите Discord (имя#0000):${NC}"
+  read DISCORD
+  echo -e "${YELLOW}Введите сайт / GitHub / Twitter ссылку:${NC}"
+  read WEBSITE
+  echo -e "${YELLOW}Введите email:${NC}"
+  read EMAIL
+  echo -e "${YELLOW}Введите Solana адрес:${NC}"
+  read SOLANA
+  echo -e "${YELLOW}Оперативная память (в ГБ):${NC}"
+  read RAM
+  echo -e "${YELLOW}Максимальный размер кэша на диске (в ГБ):${NC}"
+  read DISK
 
+  # Получаем локацию по IP
+  response=$(curl -s http://ip-api.com/json)
+  country=$(echo "$response" | jq -r '.country')
+  city=$(echo "$response" | jq -r '.city')
+  LOCATION="$city, $country"
+
+  # Оптимизация сети
+  sudo bash -c 'cat > /etc/sysctl.d/99-popcache.conf << EOL
+net.ipv4.ip_local_port_range = 1024 65535
+net.core.somaxconn = 65535
+net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_wmem = 4096 65536 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.core.wmem_max = 16777216
+net.core.rmem_max = 16777216
+EOL'
+  sudo sysctl -p /etc/sysctl.d/99-popcache.conf
+
+  sudo bash -c 'cat > /etc/security/limits.d/popcache.conf << EOL
+*    hard nofile 65535
+*    soft nofile 65535
+EOL'
+
+  # Загрузка бинарника
   ARCH=$(uname -m)
   if [[ "$ARCH" == "x86_64" ]]; then
-    BIN_URL="https://dl.pipecdn.app/v0.2.8/pop"
-  elif [[ "$ARCH" == "aarch64" ]]; then
-    BIN_URL="https://dl.pipecdn.app/v0.2.8/pop-arm64"
+    URL="https://download.pipe.network/static/pop-v0.3.0-linux-x64.tar.gz"
   else
-    echo -e "${RED}Неизвестная архитектура: $ARCH${NC}"
-    exit 1
+    URL="https://download.pipe.network/static/pop-v0.3.0-linux-arm64.tar.gz"
   fi
+  wget -q "$URL" -O pop.tar.gz
+  tar -xzf pop.tar.gz && rm pop.tar.gz
+  chmod +x $BIN_NAME
+  chmod 755 $INSTALL_DIR/$BIN_NAME
 
-  wget -O $BIN_NAME "$BIN_URL" && chmod +x $BIN_NAME
-
+  MB=$(( RAM * 1024 ))
   cat > $CONFIG <<EOF
 {
-  "pop_name": "$NAME",
-  "pop_location": "Earth, Internet",
+  "pop_name": "$NODE_NAME",
+  "pop_location": "$LOCATION",
   "invite_code": "$INVITE",
-  "server": { "host": "0.0.0.0", "port": 443, "http_port": 80, "workers": 0 },
+  "server": {"host": "0.0.0.0", "port": 443, "http_port": 80, "workers": 0},
   "cache_config": {
-    "memory_cache_size_mb": $((RAM * 1024)),
-    "disk_cache_path": "./download_cache",
+    "memory_cache_size_mb": $MB,
+    "disk_cache_path": "./cache",
     "disk_cache_size_gb": $DISK,
     "default_ttl_seconds": 86400,
     "respect_origin_headers": true,
     "max_cacheable_size_mb": 1024
   },
-  "api_endpoints": { "base_url": "https://dataplane.pipenetwork.com" },
+  "api_endpoints": {"base_url": "https://dataplane.pipenetwork.com"},
   "identity_config": {
-    "node_name": "$NAME",
-    "name": "$NAME",
+    "node_name": "$NODE_NAME",
+    "name": "$USER_NAME",
     "email": "$EMAIL",
-    "website": "$SITE",
-    "twitter": "$TWITTER",
+    "website": "$WEBSITE",
     "discord": "$DISCORD",
-    "telegram": "$TG",
+    "telegram": "$TELEGRAM",
     "solana_pubkey": "$SOLANA"
   }
 }
 EOF
 
-  screen -S popnode -dm bash -c "export POP_CONFIG_PATH=$CONFIG && ./$BIN_NAME | tee $LOG_FILE"
-  echo -e "${GREEN}Нода установлена и запущена в screen сессии 'popnode'.${NC}"
-}
-
-# Проверка
-check_status() {
-  if screen -list | grep -q popnode; then
-    echo -e "${GREEN}Нода работает в screen 'popnode'${NC}"
-  else
-    echo -e "${RED}Нода не запущена.${NC}"
-  fi
-}
-
-# Лог
-show_log() {
-  if [[ -f $LOG_FILE ]]; then
-    echo -e "${CYAN}Последние 50 строк лога:${NC}"
-    tail -n 50 $LOG_FILE
-    if grep -q "500 Internal Server Error" "$LOG_FILE"; then
-      echo -e "\n${YELLOW}⚠️ Обнаружена ошибка 500 от API Pipe. Это не критично. Просто подождите — проблема на их стороне.${NC}"
+  # Освобождение портов
+  for PORT in 80 443; do
+    if sudo ss -tulpen | awk '{print $5}' | grep -q ":$PORT$"; then
+      echo -e "${BLUE}Порт $PORT занят, освобождаем...${NC}"
+      sudo fuser -k ${PORT}/tcp
+      sleep 2
     fi
-  else
-    echo -e "${RED}Файл лога не найден.${NC}"
-  fi
+  done
+
+  # Iptables
+  sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+  sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+  sudo sh -c "iptables-save > /etc/iptables/rules.v4"
+
+  # Dockerfile
+  cat > Dockerfile <<EOL
+FROM ubuntu:24.04
+RUN apt update && apt install -y \\
+    ca-certificates \\
+    curl \\
+    libssl-dev \\
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/popcache
+COPY pop .
+COPY config.json .
+RUN chmod +x ./pop
+CMD ["./pop", "--config", "config.json"]
+EOL
+
+  docker build -t $DOCKER_IMAGE .
+  cd ~
+
+  docker run -d \
+    --name $DOCKER_CONTAINER \
+    -p 80:80 \
+    -p 443:443 \
+    --restart unless-stopped \
+    $DOCKER_IMAGE
+
+  echo -e "${GREEN}Установка завершена. Логи:${NC}"
+  echo -e "${YELLOW}docker logs -f --tail 100 $DOCKER_CONTAINER${NC}"
+  sleep 2
+  docker logs -f --tail 100 $DOCKER_CONTAINER
 }
 
-# Войти в screen
-attach_screen() {
-  screen -r popnode
+view_logs() {
+  docker logs -f --tail 100 $DOCKER_CONTAINER
 }
 
-# Перезапуск
+check_status() {
+  curl -sk https://localhost/state | jq
+}
+
+check_health() {
+  curl -sk https://localhost/health | jq
+}
+
 restart_node() {
-  screen -S popnode -X quit || true
-  screen -S popnode -dm bash -c "export POP_CONFIG_PATH=$CONFIG && ./$BIN_NAME | tee $LOG_FILE"
-  echo -e "${GREEN}Нода перезапущена.${NC}"
+  docker restart $DOCKER_CONTAINER && docker logs -f --tail 100 $DOCKER_CONTAINER
 }
 
-# Удаление
 remove_node() {
-  echo -e "${RED}Удаление ноды...${NC}"
-  screen -S popnode -X quit || true
-  pkill -f $BIN_NAME || true
-  rm -rf $INSTALL_DIR
+  docker stop $DOCKER_CONTAINER && docker rm $DOCKER_CONTAINER
+  sudo rm -rf $INSTALL_DIR
+  docker rmi $DOCKER_IMAGE:latest
+  sudo rm -f /etc/sysctl.d/99-popcache.conf
+  sudo sysctl --system
+  sudo rm -f /etc/security/limits.d/popcache.conf
   echo -e "${GREEN}Нода удалена полностью.${NC}"
 }
 
 # Меню
 animate_loading
-CHOICE=$(whiptail --title "PIPE Node Меню" \
-  --menu "Выберите действие:" 20 60 12 \
+CHOICE=$(whiptail --title "Меню установки PIPE Node" \
+  --menu "Выберите действие:" 20 60 10 \
   "1" "Установить ноду" \
-  "2" "Проверить статус" \
-  "3" "Показать лог (50 строк)" \
-  "4" "Зайти в screen" \
-  "5" "Перезапустить ноду" \
-  "6" "Удалить ноду" \
+  "2" "Перезапуск ноды" \
+  "3" "Показать логи" \
+  "4" "Удалить ноду" \
+  "5" "Проверка состояния" \
+  "6" "Проверка здоровья" \
   "7" "Выход" \
   3>&1 1>&2 2>&3)
 
 case $CHOICE in
   1) install_node ;;
-  2) check_status ;;
-  3) show_log ;;
-  4) attach_screen ;;
-  5) restart_node ;;
-  6) remove_node ;;
+  2) restart_node ;;
+  3) view_logs ;;
+  4) remove_node ;;
+  5) check_status ;;
+  6) check_health ;;
   7) echo -e "${CYAN}Выход.${NC}" ;;
   *) echo -e "${RED}Неверный выбор.${NC}" ;;
 esac
