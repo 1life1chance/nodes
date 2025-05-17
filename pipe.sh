@@ -9,18 +9,23 @@ RED="\e[31m"
 PINK="\e[35m"
 NC="\e[0m"
 
-clear
-sudo apt update -y && sudo apt install -y figlet whiptail curl docker.io jq ca-certificates libssl-dev
+INSTALL_DIR="/opt/popcache"
+BIN_NAME="pop"
+CONFIG_FILE="config.json"
 
-# Заголовок
-echo -e "${PINK}$(figlet -w 150 -f standard "Softs by The Gentleman")${NC}"
+# Установка зависимостей
+sudo apt update -y
+sudo apt install -y curl figlet whiptail jq docker.io iptables-persistent wget
+
+# Логотип
+echo -e "${PINK}$(figlet -w 120 -f standard "Softs by The Gentleman")${NC}"
 echo "============================================================================================================================="
 echo "Добро пожаловать! Пока идёт установка, подпишись на Telegram-канал для новостей и поддержки:"
 echo ""
 echo "The Gentleman — https://t.me/GentleChron"
 echo "============================================================================================================================="
 echo ""
-sleep 7
+sleep 5
 
 # Анимация
 animate_loading() {
@@ -35,67 +40,110 @@ animate_loading() {
   echo ""
 }
 
-# Установка
+# Установка ноды
 install_node() {
-  mkdir -p /opt/popcache && cd /opt/popcache
+  sudo mkdir -p $INSTALL_DIR && cd $INSTALL_DIR
 
-  INVITE=$(whiptail --inputbox "Введите invite-код:" 10 60 --title "Invite Code" 3>&1 1>&2 2>&3)
-  NAME=$(whiptail --inputbox "Придумайте имя для ноды:" 10 60 --title "Node Name" 3>&1 1>&2 2>&3)
-  NICK=$(whiptail --inputbox "Ваш ник или имя:" 10 60 --title "Your Name" 3>&1 1>&2 2>&3)
+  INVITE=$(whiptail --inputbox "Введите ваш invite-код:" 10 60 --title "Invite" 3>&1 1>&2 2>&3)
+  NAME=$(whiptail --inputbox "Придумайте имя ноды:" 10 60 --title "Node name" 3>&1 1>&2 2>&3)
+  NICK=$(whiptail --inputbox "Ваш ник или имя:" 10 60 --title "Name" 3>&1 1>&2 2>&3)
   TG=$(whiptail --inputbox "Telegram (без @):" 10 60 --title "Telegram" 3>&1 1>&2 2>&3)
-  DISCORD=$(whiptail --inputbox "Discord (user#0000):" 10 60 --title "Discord" 3>&1 1>&2 2>&3)
-  SITE=$(whiptail --inputbox "Сайт или GitHub/Twitter:" 10 60 --title "Website" 3>&1 1>&2 2>&3)
+  DISCORD=$(whiptail --inputbox "Discord (name#0000):" 10 60 --title "Discord" 3>&1 1>&2 2>&3)
+  SITE=$(whiptail --inputbox "Ваш сайт/GitHub/Twitter:" 10 60 --title "Website" 3>&1 1>&2 2>&3)
   EMAIL=$(whiptail --inputbox "Ваш email:" 10 60 --title "Email" 3>&1 1>&2 2>&3)
-  SOLANA=$(whiptail --inputbox "Ваш Solana-адрес:" 10 60 --title "Solana" 3>&1 1>&2 2>&3)
-  RAM=$(whiptail --inputbox "RAM в ГБ (например, 8):" 10 60 --title "RAM" 3>&1 1>&2 2>&3)
-  DISK=$(whiptail --inputbox "Диск в ГБ (например, 250):" 10 60 --title "Disk" 3>&1 1>&2 2>&3)
+  SOLANA=$(whiptail --inputbox "Solana-адрес:" 10 60 --title "Solana" 3>&1 1>&2 2>&3)
+  RAM=$(whiptail --inputbox "Сколько RAM (в ГБ) выделить:" 10 60 --title "RAM" 3>&1 1>&2 2>&3)
+  DISK=$(whiptail --inputbox "Сколько DISK (в ГБ) выделить:" 10 60 --title "DISK" 3>&1 1>&2 2>&3)
 
-  LOCATION=$(curl -s http://ip-api.com/json | jq -r '.city + ", " + .country')
+  response=$(curl -s http://ip-api.com/json)
+  COUNTRY=$(echo "$response" | jq -r '.country')
+  CITY=$(echo "$response" | jq -r '.city')
+  LOCATION="$CITY, $COUNTRY"
+  RAM_MB=$((RAM * 1024))
 
-  wget -q https://download.pipe.network/static/pop-v0.3.0-linux-x64.tar.gz -O pop.tar.gz
+  ARCH=$(uname -m)
+  if [[ "$ARCH" == "x86_64" ]]; then
+    URL="https://download.pipe.network/static/pop-v0.3.0-linux-x64.tar.gz"
+  else
+    URL="https://download.pipe.network/static/pop-v0.3.0-linux-arm64.tar.gz"
+  fi
+
+  wget -q "$URL" -O pop.tar.gz
   tar -xzf pop.tar.gz && rm pop.tar.gz
-  chmod +x pop
+  chmod +x $BIN_NAME
 
-  cat > config.json <<EOF
+  cat > $CONFIG_FILE <<EOF
 {
   "pop_name": "$NAME",
   "pop_location": "$LOCATION",
   "invite_code": "$INVITE",
   "server": {"host": "0.0.0.0", "port": 443, "http_port": 80, "workers": 0},
-  "cache_config": {"memory_cache_size_mb": $((RAM * 1024)), "disk_cache_path": "./cache", "disk_cache_size_gb": $DISK, "default_ttl_seconds": 86400, "respect_origin_headers": true, "max_cacheable_size_mb": 1024},
-  "api_endpoints": {"base_url": "https://dataplane.pipenetwork.com"},
-  "identity_config": {"node_name": "$NAME", "name": "$NICK", "email": "$EMAIL", "website": "$SITE", "discord": "$DISCORD", "telegram": "$TG", "solana_pubkey": "$SOLANA"}
+  "cache_config": {
+    "memory_cache_size_mb": $RAM_MB,
+    "disk_cache_path": "./cache",
+    "disk_cache_size_gb": $DISK,
+    "default_ttl_seconds": 86400,
+    "respect_origin_headers": true,
+    "max_cacheable_size_mb": 1024
+  },
+  "api_endpoints": { "base_url": "https://dataplane.pipenetwork.com" },
+  "identity_config": {
+    "node_name": "$NAME",
+    "name": "$NICK",
+    "email": "$EMAIL",
+    "website": "$SITE",
+    "discord": "$DISCORD",
+    "telegram": "$TG",
+    "solana_pubkey": "$SOLANA"
+  }
 }
 EOF
 
-  cat > Dockerfile << EOL
+  cat > Dockerfile <<EOF
 FROM ubuntu:24.04
-RUN apt update && apt install -y \\
-    ca-certificates \\
-    curl \\
-    libssl-dev \\
-    && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install -y ca-certificates curl libssl-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/popcache
-COPY pop .
-COPY config.json .
-RUN chmod +x ./pop
-CMD ["./pop", "--config", "config.json"]
-EOL
+COPY $BIN_NAME .
+COPY $CONFIG_FILE .
+RUN chmod +x ./$BIN_NAME
+CMD ["./$BIN_NAME", "--config", "$CONFIG_FILE"]
+EOF
 
   docker build -t popnode .
   docker run -d --name popnode -p 80:80 -p 443:443 --restart unless-stopped popnode
 
-  echo -e "${GREEN}Нода установлена и работает в контейнере popnode${NC}"
-  echo -e "${CYAN}Логи: docker logs --tail 100 -f popnode${NC}"
-  docker logs --tail 20 -f popnode
+  echo -e "${GREEN}Нода установлена и запущена!${NC}"
+}
+
+# Проверка статуса
+check_status() {
+  if docker ps | grep -q popnode; then
+    echo -e "${GREEN}Нода запущена в Docker контейнере 'popnode'.${NC}"
+  else
+    echo -e "${RED}Нода не запущена.${NC}"
+  fi
+}
+
+# Показ логов
+show_logs() {
+  docker logs --tail 50 -f popnode
+}
+
+# Перезапуск
+restart_node() {
+  docker restart popnode
+  echo -e "${GREEN}Нода перезапущена.${NC}"
 }
 
 # Удаление
 remove_node() {
   docker stop popnode && docker rm popnode
   docker rmi popnode:latest
-  rm -rf /opt/popcache
-  echo -e "${GREEN}Нода удалена.${NC}"
+  sudo rm -rf $INSTALL_DIR
+  sudo rm -f /etc/sysctl.d/99-popcache.conf
+  sudo rm -f /etc/security/limits.d/popcache.conf
+  sudo sysctl --system
+  echo -e "${GREEN}Нода полностью удалена.${NC}"
 }
 
 # Меню
@@ -103,17 +151,19 @@ animate_loading
 CHOICE=$(whiptail --title "PIPE Node Меню" \
   --menu "Выберите действие:" 20 60 10 \
   "1" "Установить ноду" \
-  "2" "Удалить ноду" \
-  "3" "Логи (docker logs)" \
-  "4" "Рестарт контейнера" \
-  "5" "Выход" \
+  "2" "Показать лог (50 строк)" \
+  "3" "Удалить ноду" \
+  "4" "Проверить статус" \
+  "5" "Перезапустить ноду" \
+  "6" "Выход" \
   3>&1 1>&2 2>&3)
 
 case $CHOICE in
   1) install_node ;;
-  2) remove_node ;;
-  3) docker logs --tail 100 -f popnode ;;
-  4) docker restart popnode && docker logs --tail 20 -f popnode ;;
-  5) echo -e "${CYAN}Выход.${NC}" ;;
+  2) show_logs ;;
+  3) remove_node ;;
+  4) check_status ;;
+  5) restart_node ;;
+  6) echo -e "${CYAN}Выход.${NC}" ;;
   *) echo -e "${RED}Неверный выбор.${NC}" ;;
 esac
