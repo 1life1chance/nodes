@@ -110,12 +110,13 @@ EOF
     docker run -d \
       --name aztec-sequencer \
       --network host \
+      --entrypoint /bin/sh \
       --env-file "$HOME/aztec-sequencer/.env" \
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
       aztecprotocol/aztec:0.87.2 \
-      node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer
+      -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
 
     echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
     echo -e "${YELLOW}Команда для проверки логов:${NC}" 
@@ -164,12 +165,13 @@ EOF
     docker run -d \
       --name aztec-sequencer \
       --network host \
+      --entrypoint /bin/sh \
       --env-file "$HOME/aztec-sequencer/.env" \
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
       aztecprotocol/aztec:0.87.2 \
-      node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer
+      -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
     echo -e "${GREEN}Обновление завершено.${NC}"
     docker logs --tail 100 -f aztec-sequencer
     ;;
