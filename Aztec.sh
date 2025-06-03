@@ -45,7 +45,7 @@ give_ack() {
 
 # Меню выбора
 CHOICE=$(whiptail --title "Меню управления Aztec" \
-  --menu "Выберите нужное действие:" 20 70 9 \
+  --menu "Выберите нужное действие:" 20 70 10 \
     "1" "Первичная установка и запуск" \
     "2" "Проверка лога событий" \
     "3" "Запрос текущего хеша" \
@@ -53,6 +53,7 @@ CHOICE=$(whiptail --title "Меню управления Aztec" \
     "5" "Обновление ПО ноды" \
     "6" "Перезапуск контейнера" \
     "7" "Удаление всех данных" \
+    "8" "Запрос роли (опц.)" \
   3>&1 1>&2 2>&3)
 
 if [ $? -ne 0 ]; then
@@ -87,7 +88,7 @@ case $CHOICE in
     mkdir -p "$HOME/aztec-sequencer"
     cd "$HOME/aztec-sequencer"
 
-    docker pull aztecprotocol/aztec:0.87.2
+    docker pull aztecprotocol/aztec:0.87.6
 
     read -p "Вставьте ваш URL RPC Sepolia: " RPC
     read -p "Вставьте ваш URL Beacon Sepolia: " CONSENSUS
@@ -115,7 +116,7 @@ EOF
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
-      aztecprotocol/aztec:0.87.2 \
+      aztecprotocol/aztec:0.87.6 \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
 
     echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
@@ -157,7 +158,7 @@ EOF
 
   5)
     echo -e "${BLUE}Обновление ноды Aztec...${NC}"
-    docker pull aztecprotocol/aztec:0.87.2
+    docker pull aztecprotocol/aztec:0.87.6
     docker stop aztec-sequencer
     docker rm aztec-sequencer
     rm -rf "$HOME/aztec-sequencer/data/*"
@@ -170,7 +171,7 @@ EOF
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
-      aztecprotocol/aztec:0.87.2 \
+      aztecprotocol/aztec:0.87.6 \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
     echo -e "${GREEN}Обновление завершено.${NC}"
     docker logs --tail 100 -f aztec-sequencer
@@ -187,6 +188,15 @@ EOF
     docker rm aztec-sequencer
     rm -rf "$HOME/aztec-sequencer"
     echo -e "${GREEN}Нода удалена.${NC}"
+    ;;
+
+  8)
+    echo -e "${GREEN}Запрос роли...${NC}"
+    tmpf=$(mktemp)
+    curl -fsSL https://raw.githubusercontent.com/TheGentIeman/Nodes/main/AztecRole.sh > "$tmpf"
+    bash "$tmpf"
+    rm -f "$tmpf"
+    give_ack
     ;;
 
   *)
