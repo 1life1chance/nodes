@@ -61,6 +61,8 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+AZTEC_IMAGE="aztecprotocol/aztec:0.87.7"
+
 case $CHOICE in
   1)
     echo -e "${GREEN}Установка зависимостей...${NC}"
@@ -88,7 +90,7 @@ case $CHOICE in
     mkdir -p "$HOME/aztec-sequencer"
     cd "$HOME/aztec-sequencer"
 
-    docker pull aztecprotocol/aztec:0.87.6
+    docker pull $AZTEC_IMAGE
 
     read -p "Вставьте ваш URL RPC Sepolia: " RPC
     read -p "Вставьте ваш URL Beacon Sepolia: " CONSENSUS
@@ -116,7 +118,7 @@ EOF
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
-      aztecprotocol/aztec:0.87.6 \
+      $AZTEC_IMAGE \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
 
     echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
@@ -158,7 +160,7 @@ EOF
 
   5)
     echo -e "${BLUE}Обновление ноды Aztec...${NC}"
-    docker pull aztecprotocol/aztec:0.87.6
+    docker pull $AZTEC_IMAGE
     docker stop aztec-sequencer
     docker rm aztec-sequencer
     rm -rf "$HOME/aztec-sequencer/data/*"
@@ -171,7 +173,7 @@ EOF
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
-      aztecprotocol/aztec:0.87.6 \
+      $AZTEC_IMAGE \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
     echo -e "${GREEN}Обновление завершено.${NC}"
     docker logs --tail 100 -f aztec-sequencer
