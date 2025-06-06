@@ -108,6 +108,8 @@ WALLET=$WALLET
 GOVERNANCE_PROPOSER_PAYLOAD_ADDRESS=0x54F7fe24E349993b363A5Fa1bccdAe2589D5E5Ef
 EOF
 
+    # ОЧИСТКА данных перед запуском
+    rm -rf "$HOME/aztec-sequencer/data"
     mkdir -p "$HOME/aztec-sequencer/data"
 
     docker run -d \
@@ -163,8 +165,11 @@ EOF
     docker pull $AZTEC_IMAGE
     docker stop aztec-sequencer
     docker rm aztec-sequencer
-    rm -rf "$HOME/aztec-sequencer/data/*"
+
+    # ОЧИСТКА старых данных
+    rm -rf "$HOME/aztec-sequencer/data"
     mkdir -p "$HOME/aztec-sequencer/data"
+
     docker run -d \
       --name aztec-sequencer \
       --network host \
@@ -175,6 +180,7 @@ EOF
       -v "$HOME/aztec-sequencer/data":/data \
       $AZTEC_IMAGE \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
+
     echo -e "${GREEN}Обновление завершено.${NC}"
     docker logs --tail 100 -f aztec-sequencer
     ;;
@@ -194,10 +200,7 @@ EOF
 
   8)
     echo -e "${GREEN}Запрос роли...${NC}"
-    tmpf=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/TheGentIeman/Nodes/main/AztecRole.sh > "$tmpf"
-    bash "$tmpf"
-    rm -f "$tmpf"
+    echo -e "${YELLOW}Функция в разработке или уже встроена.${NC}"
     give_ack
     ;;
 
