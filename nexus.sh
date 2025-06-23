@@ -126,14 +126,12 @@ install_node() {
 }
 
 # Вывод приветственного текста с помощью figlet
-echo -e "${PINK}$(figlet -w 150 -f standard \"Softs by Gentleman\")${NC}"
-echo -e "${PINK}$(figlet -w 150 -f standard \"x WESNA\")${NC}"
+echo -e "${PINK}$(figlet -w 150 -f standard \"Softs by The Gentleman\")${NC}"
 
 echo "===================================================================================================================================="
-echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на наши Telegram-каналы для обновлений и поддержки: "
+echo "Добро пожаловать! Начинаем установку необходимых библиотек, пока подпишись на омй Telegram-канал для обновлений и поддержки: "
 echo ""
-echo "Gentleman - https://t.me/GentleChron"
-echo "Wesna - https://t.me/softs_by_wesna"
+echo "The Gentleman - https://t.me/GentleChron"
 echo "===================================================================================================================================="
 
 echo ""
