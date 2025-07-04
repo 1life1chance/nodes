@@ -20,7 +20,7 @@ NC="\e[0m"
 echo -e "\n\n"
 echo -e "${CYAN}$(figlet -w 150 -f standard \"Soft by The Gentleman\")${NC}"
 echo "=========================================================================="
-echo "      Добро пожаловать в мастер установки ноды Aztec от Джентльмена       "
+echo "           Установка ноды Aztec Джентльмена + Гоблинская версия           "
 echo "=========================================================================="
 
 echo -e "${YELLOW}Подписывайтесь на Telegram: https://t.me/GentleChron${NC}"
@@ -67,6 +67,7 @@ case $CHOICE in
   1)
     echo -e "${GREEN}Установка зависимостей...${NC}"
     sudo apt-get update && sudo apt-get upgrade -y
+    sudo apt install nodejs npm -y
     sudo apt install -y iptables-persistent curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip
 
     if ! command -v docker &> /dev/null; then
