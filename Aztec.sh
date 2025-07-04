@@ -20,7 +20,7 @@ NC="\e[0m"
 echo -e "\n\n"
 echo -e "${CYAN}$(figlet -w 150 -f standard \"Soft by The Gentleman\")${NC}"
 echo "=========================================================================="
-echo "      Добро пожаловать в мастер установки ноды Aztec от Джентльмена       "
+echo "             Добро пожаловать в мастер установки 0.87.9                   "
 echo "=========================================================================="
 
 echo -e "${YELLOW}Подписывайтесь на Telegram: https://t.me/GentleChron${NC}"
@@ -87,7 +87,7 @@ case $CHOICE in
     mkdir -p "$HOME/aztec-sequencer"
     cd "$HOME/aztec-sequencer"
 
-    docker pull aztecprotocol/aztec:0.87.9
+    docker pull aztecprotocol/aztec:0.87.7
 
     read -p "Вставьте ваш URL RPC Sepolia: " RPC
     read -p "Вставьте ваш URL Beacon Sepolia: " CONSENSUS
@@ -115,7 +115,7 @@ EOF
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
-      aztecprotocol/aztec:0.87.9 \
+      aztecprotocol/aztec:0.87.7 \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
 
     echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
