@@ -61,7 +61,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-AZTEC_IMAGE="aztecprotocol/aztec:0.87.7"
+AZTEC_IMAGE="aztecprotocol/aztec:0.87.9"
 
 case $CHOICE in
   1)
