@@ -20,7 +20,7 @@ NC="\e[0m"
 echo -e "\n\n"
 echo -e "${CYAN}$(figlet -w 150 -f standard \"Soft by The Gentleman\")${NC}"
 echo "=========================================================================="
-echo "           Установка ноды Aztec Джентльмена + Гоблинская версия           "
+echo "      Добро пожаловать в мастер установки ноды Aztec от Джентльмена       "
 echo "=========================================================================="
 
 echo -e "${YELLOW}Подписывайтесь на Telegram: https://t.me/GentleChron${NC}"
@@ -45,7 +45,7 @@ give_ack() {
 
 # Меню выбора
 CHOICE=$(whiptail --title "Меню управления Aztec" \
-  --menu "Выберите нужное действие:" 20 70 10 \
+  --menu "Выберите нужное действие:" 20 70 9 \
     "1" "Первичная установка и запуск" \
     "2" "Проверка лога событий" \
     "3" "Запрос текущего хеша" \
@@ -53,7 +53,6 @@ CHOICE=$(whiptail --title "Меню управления Aztec" \
     "5" "Обновление ПО ноды" \
     "6" "Перезапуск контейнера" \
     "7" "Удаление всех данных" \
-    "8" "Запрос роли (опц.)" \
   3>&1 1>&2 2>&3)
 
 if [ $? -ne 0 ]; then
@@ -61,13 +60,10 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-AZTEC_IMAGE="aztecprotocol/aztec:0.87.9"
-
 case $CHOICE in
   1)
     echo -e "${GREEN}Установка зависимостей...${NC}"
     sudo apt-get update && sudo apt-get upgrade -y
-    sudo apt install nodejs npm -y
     sudo apt install -y iptables-persistent curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip
 
     if ! command -v docker &> /dev/null; then
@@ -91,7 +87,7 @@ case $CHOICE in
     mkdir -p "$HOME/aztec-sequencer"
     cd "$HOME/aztec-sequencer"
 
-    docker pull $AZTEC_IMAGE
+    docker pull aztecprotocol/aztec:0.87.9
 
     read -p "Вставьте ваш URL RPC Sepolia: " RPC
     read -p "Вставьте ваш URL Beacon Sepolia: " CONSENSUS
@@ -109,8 +105,6 @@ WALLET=$WALLET
 GOVERNANCE_PROPOSER_PAYLOAD_ADDRESS=0x54F7fe24E349993b363A5Fa1bccdAe2589D5E5Ef
 EOF
 
-    # ОЧИСТКА данных перед запуском
-    rm -rf "$HOME/aztec-sequencer/data"
     mkdir -p "$HOME/aztec-sequencer/data"
 
     docker run -d \
@@ -121,7 +115,7 @@ EOF
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
-      $AZTEC_IMAGE \
+      aztecprotocol/aztec:0.87.9 \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
 
     echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
@@ -163,14 +157,11 @@ EOF
 
   5)
     echo -e "${BLUE}Обновление ноды Aztec...${NC}"
-    docker pull $AZTEC_IMAGE
+    docker pull aztecprotocol/aztec:0.87.9
     docker stop aztec-sequencer
     docker rm aztec-sequencer
-
-    # ОЧИСТКА старых данных
-    rm -rf "$HOME/aztec-sequencer/data"
+    rm -rf "$HOME/aztec-sequencer/data/*"
     mkdir -p "$HOME/aztec-sequencer/data"
-
     docker run -d \
       --name aztec-sequencer \
       --network host \
@@ -179,9 +170,8 @@ EOF
       -e DATA_DIRECTORY=/data \
       -e LOG_LEVEL=debug \
       -v "$HOME/aztec-sequencer/data":/data \
-      $AZTEC_IMAGE \
+      aztecprotocol/aztec:0.87.9 \
       -c 'node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --network alpha-testnet --node --archiver --sequencer'
-
     echo -e "${GREEN}Обновление завершено.${NC}"
     docker logs --tail 100 -f aztec-sequencer
     ;;
@@ -197,12 +187,6 @@ EOF
     docker rm aztec-sequencer
     rm -rf "$HOME/aztec-sequencer"
     echo -e "${GREEN}Нода удалена.${NC}"
-    ;;
-
-  8)
-    echo -e "${GREEN}Запрос роли...${NC}"
-    echo -e "${YELLOW}Функция в разработке или уже встроена.${NC}"
-    give_ack
     ;;
 
   *)
