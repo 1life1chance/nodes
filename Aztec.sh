@@ -20,7 +20,7 @@ NC="\e[0m"
 echo -e "\n\n"
 echo -e "${CYAN}$(figlet -w 150 -f standard \"Soft by The Gentleman\")${NC}"
 echo "=========================================================================="
-echo "             Добро пожаловать в мастер установки 0.87.9                   "
+echo "                  Новая версия с обновлением     0.87.9                   "
 echo "=========================================================================="
 
 echo -e "${YELLOW}Подписывайтесь на Telegram: https://t.me/GentleChron${NC}"
@@ -156,7 +156,7 @@ EOF
     ;;
 
   5)
-    echo -e "${BLUE}Обновление ноды Aztec...${NC}"
+    echo -e "${BLUE}Обновление новой ноды Aztec...${NC}"
     docker pull aztecprotocol/aztec:0.87.9
     docker stop aztec-sequencer
     docker rm aztec-sequencer
